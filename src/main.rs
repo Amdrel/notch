@@ -9,8 +9,6 @@ mod interpreter;
 mod cpu;
 
 fn main() {
-    println!("Starting notch");
-
     // TODO: Replace unwrap.
     let rom_file_name = env::args().nth(1).unwrap();
     let rom = read_bin(rom_file_name);

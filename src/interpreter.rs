@@ -1,6 +1,8 @@
 use super::byteorder::{BigEndian, ByteOrder};
 use super::cpu;
 
+use std::fmt;
+
 // Size of the memory map of a CHIP-8 interpreter is 4kb.
 const RAM_SIZE: usize = 4096;
 
@@ -26,10 +28,12 @@ impl Interpreter {
 
     pub fn run(&mut self) {
         loop {
-            println!("Loop!");
+            let word = self.read_word(self.cpu.pc);
+            &self.cpu.execute_instruction(word);
         }
     }
 
-    fn read(&mut self) {
+    fn read_word(&self, addr: u16) -> u16 {
+        BigEndian::read_u16(&self.rom[addr as usize..])
     }
 }
