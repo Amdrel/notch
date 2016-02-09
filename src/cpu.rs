@@ -1,9 +1,14 @@
+use super::interconnect::Interconnect;
+
 const INSTRUCTION_SIZE: u16 = 2;
 
 #[derive(Default, Debug)]
 pub struct Cpu {
+    // Interconnect is used to control system resources like rom and memory.
+    interconnect: Interconnect,
+
     // Program counter.
-    pub pc: u16,
+    pc: u16,
 
     // The stack.
     stack: [u16; 12],
@@ -38,23 +43,42 @@ pub struct Cpu {
 }
 
 impl Cpu {
-    pub fn new() -> Cpu {
-        Cpu::default()
+    pub fn new(interconnect: Interconnect) -> Cpu {
+        Cpu {
+            interconnect: interconnect,
+            ..Cpu::default()
+        }
+    }
+
+    pub fn run(&mut self) {
+        loop {
+            let word = self.interconnect.read_word(self.pc);
+            &self.execute_instruction(word);
+        }
     }
 
     #[inline(always)]
-    pub fn execute_instruction(&mut self, instr: u16) {
+    fn execute_instruction(&mut self, instr: u16) {
         let opcode = (instr >> 12) as u8;
 
         match opcode {
             0x6 => {
+                // 6xkk - LD Vx, byte
                 let reg = ((instr << 4) >> 12) as u8;
                 let byte = ((instr << 8) >> 8) as u8;
                 self.set_reg(reg, byte);
             },
+            0xa => {
+                // Annn - LD I, addr
+                let addr = ((instr << 4) >> 4) as u16;
+                self.i = addr;
+            },
+            //0xd => {
+            //    // Dxyn - DRW Vx, Vy, nibble
+            //}
             _ => {
                 println!("cpu: {:#?}", self);
-                panic!("Found unknown opcode at addr: {:#x}", instr);
+                panic!("Found unknown opcode at instruction: {:#x}", instr);
             }
         }
 

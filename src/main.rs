@@ -6,6 +6,7 @@ use std::io::Read;
 use std::path::Path;
 
 mod interpreter;
+mod interconnect;
 mod cpu;
 
 fn main() {
