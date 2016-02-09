@@ -73,9 +73,28 @@ impl Cpu {
                 let addr = ((instr << 4) >> 4) as u16;
                 self.i = addr;
             },
-            //0xd => {
-            //    // Dxyn - DRW Vx, Vy, nibble
-            //}
+            0xd => {
+                // Dxyn - DRW Vx, Vy, nibble
+                let regx = ((instr << 4) >> 12) as u8;
+                let regy = ((instr << 8) >> 12) as u8;
+                let nibble = ((instr << 12) >> 12) as usize;
+
+                // Read n (nibble) bytes out out of memory starting at address
+                // register I into our sprite.
+                let mut sprite = vec![0 as u8; nibble];
+                for i in 0..nibble {
+                    sprite[i] = self.interconnect.ram[self.i as usize + i];
+                }
+
+                // Get screen coordinates from the passed registers and draw
+                // the sprite to the display starting there.
+                let x = self.get_reg(regx);
+                let y = self.get_reg(regy);
+                self.vf = self.interconnect.draw(x as usize, y as usize, sprite);
+
+                //println!("{:#?}, {:#?}, {:#x}", x, y, nibble);
+                //panic!("unhandled");
+            }
             _ => {
                 println!("cpu: {:#?}", self);
                 panic!("Found unknown opcode at instruction: {:#x}", instr);
@@ -84,7 +103,32 @@ impl Cpu {
 
         self.pc += INSTRUCTION_SIZE;
 
-        println!("addr: {:#x}", instr);
+        println!("{:#x}", instr);
+    }
+
+    /// Gets the value at a specified register.
+    fn get_reg(&mut self, reg: u8) -> u8 {
+        match reg {
+            0x0 => self.v0,
+            0x1 => self.v1,
+            0x2 => self.v2,
+            0x3 => self.v3,
+            0x4 => self.v4,
+            0x5 => self.v5,
+            0x6 => self.v6,
+            0x7 => self.v7,
+            0x8 => self.v8,
+            0x9 => self.v9,
+            0xa => self.va,
+            0xb => self.vb,
+            0xc => self.vc,
+            0xd => self.vd,
+            0xe => self.ve,
+            0xf => self.vf,
+            _ => {
+                panic!("Cannot get unknown register: V{:X}", reg);
+            }
+        }
     }
 
     /// Sets the value of a general purpose register.

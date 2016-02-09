@@ -7,7 +7,7 @@ pub struct Interpreter {
 
 impl Interpreter {
     pub fn new(rom: Vec<u8>) -> Interpreter {
-        let mut interconnect = Interconnect::new(rom);
+        let interconnect = Interconnect::new(rom);
 
         Interpreter {
             cpu: cpu::Cpu::new(interconnect),
