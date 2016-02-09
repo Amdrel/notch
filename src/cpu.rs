@@ -1,4 +1,6 @@
-#[derive(Default)]
+const INSTRUCTION_SIZE: u16 = 2;
+
+#[derive(Default, Debug)]
 pub struct Cpu {
     // Program counter.
     pub pc: u16,
@@ -48,22 +50,20 @@ impl Cpu {
             0x6 => {
                 let reg = ((instr << 4) >> 12) as u8;
                 let byte = ((instr << 8) >> 8) as u8;
-
-                println!("regval: {:#x}", self.va);
                 self.set_reg(reg, byte);
-
-                //println!("reg: {:#x}", reg);
-                //println!("byte: {:#x}", byte);
             },
             _ => {
+                println!("cpu: {:#?}", self);
                 panic!("Found unknown opcode at addr: {:#x}", instr);
             }
         }
 
-        //println!("opcode: {:#x}", opcode);
-        //println!("addr: {:#x}", instr);
+        self.pc += INSTRUCTION_SIZE;
+
+        println!("addr: {:#x}", instr);
     }
 
+    /// Sets the value of a general purpose register.
     fn set_reg(&mut self, reg: u8, byte: u8) {
         match reg {
             0x0 => self.v0 = byte,
