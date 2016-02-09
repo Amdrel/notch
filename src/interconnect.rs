@@ -57,7 +57,6 @@ impl Interconnect {
                 if pos >= DISPLAY_WIDTH {
                     let diff = pos - DISPLAY_WIDTH;
                     index = y * (DISPLAY_WIDTH * i) + j - diff;
-                    println!("x: {:#?}, y: {:#?}", x, y);
                 } else {
                     index = offset + j;
                 }
@@ -81,6 +80,20 @@ impl Interconnect {
                     collision = 1;
                 }
             }
+        }
+
+        // TODO: Get rid of when a real framebuffer is aquired. Just a way to
+        // visually see what is being drawn in the terminal.
+        for i in 0..DISPLAY_HEIGHT {
+            for j in 0..DISPLAY_WIDTH {
+                if self.display[j + DISPLAY_HEIGHT * i] == 1 {
+                    print!("¶");
+                } else {
+                    print!(" ");
+                }
+            }
+
+            println!("");
         }
 
         collision
