@@ -95,8 +95,6 @@ impl Cpu {
                     sprite[i] = self.interconnect.ram[self.i as usize + i];
                 }
 
-                println!("{:#?}", sprite);
-
                 // Get screen coordinates from the requested registers.
                 let x = self.get_reg(regx);
                 let y = self.get_reg(regy);

@@ -44,12 +44,13 @@ impl Interconnect {
     pub fn draw(&mut self, x: usize, y: usize, mut sprite: Vec<u8>) -> u8 {
         let line = y * DISPLAY_WIDTH;
         let mut collision: u8 = 0;
+        let mut values = vec![0 as u8; 8];
 
         for i in 0..sprite.len() {
             // Each byte in a sprite draws on one line.
             let offset = line + DISPLAY_WIDTH * i;
-            let mut values = vec![0 as u8; 8];
 
+            // Organize the bits from the current sprite byte into a slice.
             for j in 0..values.len() {
                 let bit = (sprite[i] >> j) & 0x01;
                 values[8 - 1 - j] = bit;
@@ -62,29 +63,16 @@ impl Interconnect {
                 let pos: usize = x + j;
                 let index: usize;
 
+                // Draw a pixel in the sprite onto the display. If the pixel x
+                // position is greater than the width of the display, the sprite
+                // wraps around the display.
                 if pos > DISPLAY_WIDTH {
+                    // Wrap around to the left side to draw.
                     index = offset + pos - DISPLAY_WIDTH;
                 } else {
+                    // Draw at the current offset.
                     index = offset + pos;
                 }
-
-                //let pos = x + j;
-
-                // Determine which pixel shall be drawn. If the sprite is
-                // overflowing off the right side of the screen, if wraps back
-                // to the left side.
-                //if pos >= DISPLAY_WIDTH {
-                //    let diff = pos - DISPLAY_WIDTH;
-                //    index = y * (DISPLAY_WIDTH * i) + j - diff;
-                //} else {
-                //    index = offset + j;
-                //}
-
-                //// If the sprite is drawing off the bottom of the display, do
-                //// not draw pixels off the display.
-                //if index >= 2048 {
-                //    continue;
-                //}
 
                 // Save the previous state of the pixel before setting it
                 // for collision detection.
