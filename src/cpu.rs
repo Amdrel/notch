@@ -1,4 +1,5 @@
 use super::interconnect::Interconnect;
+use super::interconnect::END_RESERVED;
 
 const INSTRUCTION_SIZE: u16 = 2;
 
@@ -10,8 +11,8 @@ pub struct Cpu {
     // Program counter.
     pc: u16,
 
-    // The stack.
-    stack: [u16; 12],
+    // The function call stack.
+    stack: [u16; 16],
 
     // Stack pointer.
     sp: u8,
@@ -46,20 +47,28 @@ impl Cpu {
     pub fn new(interconnect: Interconnect) -> Cpu {
         Cpu {
             interconnect: interconnect,
+            pc: END_RESERVED as u16,
             ..Cpu::default()
         }
     }
 
+    /// Execute instructions from ram.
     pub fn run(&mut self) {
         loop {
             let word = self.interconnect.read_word(self.pc);
-            &self.execute_instruction(word);
+
+            // Execute until the subroutine ends.
+            if self.execute_instruction(word) {
+                break
+            }
         }
     }
 
     #[inline(always)]
-    fn execute_instruction(&mut self, instr: u16) {
+    fn execute_instruction(&mut self, instr: u16) -> bool {
         let opcode = (instr >> 12) as u8;
+
+        //println!("{:#x}", instr);
 
         match opcode {
             0x6 => {
@@ -86,14 +95,29 @@ impl Cpu {
                     sprite[i] = self.interconnect.ram[self.i as usize + i];
                 }
 
-                // Get screen coordinates from the passed registers and draw
-                // the sprite to the display starting there.
+                println!("{:#?}", sprite);
+
+                // Get screen coordinates from the requested registers.
                 let x = self.get_reg(regx);
                 let y = self.get_reg(regy);
-                self.vf = self.interconnect.draw(x as usize, y as usize, sprite);
 
-                //println!("{:#?}, {:#?}, {:#x}", x, y, nibble);
-                //panic!("unhandled");
+                // Draw the sprite and store collision detection results in vf.
+                self.vf = self.interconnect.draw(x as usize, y as usize, sprite);
+            },
+            0x2 => {
+                // 2nnn - CALL addr
+                let addr = ((instr << 4) >> 4) as u16;
+
+                // Add the current program counter to the call stack.
+                self.stack[self.sp as usize] = self.pc;
+                self.sp += 1;
+
+                // Set the program counter to the call address begin executing
+                // the subroutine.
+                self.pc = addr;
+                self.run();
+
+                panic!("unhandled");
             }
             _ => {
                 println!("cpu: {:#?}", self);
@@ -101,9 +125,10 @@ impl Cpu {
             }
         }
 
+        // Increment the program counter to the next instruction.
         self.pc += INSTRUCTION_SIZE;
 
-        println!("{:#x}", instr);
+        false
     }
 
     /// Gets the value at a specified register.

@@ -10,69 +10,88 @@ const DISPLAY_HEIGHT: usize = 32;
 const DISPLAY_SIZE: usize = DISPLAY_WIDTH * DISPLAY_HEIGHT;
 
 // Memory map constants.
-//const START_RESERVED: u16 = 0x000;
-//const END_RESERVED: u16 = 0x200;
-//const END_PROGRAM_SPACE: u16 = 0xFFF;
+pub const START_RESERVED: usize = 0x000;
+pub const END_RESERVED: usize = 0x200;
+pub const END_PROGRAM_SPACE: usize = 0xFFF;
 
 #[derive(Default)]
 pub struct Interconnect {
-    pub rom: Vec<u8>,
     pub ram: Vec<u8>,
     pub display: Vec<u8>,
 }
 
 impl Interconnect {
     pub fn new(rom: Vec<u8>) -> Interconnect {
+        let mut ram = vec![0; RAM_SIZE];
+
+        // Dump the rom into ram starting at the start of the program space.
+        for i in 0..rom.len() {
+            ram[i + END_RESERVED] = rom[i];
+        }
+
         Interconnect {
-            rom: rom,
-            ram: vec![0; RAM_SIZE],
+            ram: ram,
             display: vec![0; DISPLAY_SIZE],
         }
     }
 
     #[inline(always)]
     pub fn read_word(&self, addr: u16) -> u16 {
-        BigEndian::read_u16(&self.rom[addr as usize..])
+        BigEndian::read_u16(&self.ram[addr as usize..])
     }
 
     #[inline(always)]
-    pub fn draw(&mut self, x: usize, y: usize, sprite: Vec<u8>) -> u8 {
-        let start = y * DISPLAY_WIDTH + x;
+    pub fn draw(&mut self, x: usize, y: usize, mut sprite: Vec<u8>) -> u8 {
+        let line = y * DISPLAY_WIDTH;
         let mut collision: u8 = 0;
 
         for i in 0..sprite.len() {
             // Each byte in a sprite draws on one line.
-            let offset = start + DISPLAY_WIDTH * i;
+            let offset = line + DISPLAY_WIDTH * i;
+            let mut values = vec![0 as u8; 8];
+
+            for j in 0..values.len() {
+                let bit = (sprite[i] >> j) & 0x01;
+                values[8 - 1 - j] = bit;
+            }
 
             // Loop through the bits in the current byte and set the display
             // values based on them.
-            for j in 0..8 {
-                let bit = (0x01 << j) & sprite[i];
-                let pos = x + j;
+            for j in 0..values.len() {
+                let value = values[j];
+                let pos: usize = x + j;
                 let index: usize;
+
+                if pos > DISPLAY_WIDTH {
+                    index = offset + pos - DISPLAY_WIDTH;
+                } else {
+                    index = offset + pos;
+                }
+
+                //let pos = x + j;
 
                 // Determine which pixel shall be drawn. If the sprite is
                 // overflowing off the right side of the screen, if wraps back
                 // to the left side.
-                if pos >= DISPLAY_WIDTH {
-                    let diff = pos - DISPLAY_WIDTH;
-                    index = y * (DISPLAY_WIDTH * i) + j - diff;
-                } else {
-                    index = offset + j;
-                }
+                //if pos >= DISPLAY_WIDTH {
+                //    let diff = pos - DISPLAY_WIDTH;
+                //    index = y * (DISPLAY_WIDTH * i) + j - diff;
+                //} else {
+                //    index = offset + j;
+                //}
 
-                // If the sprite is drawing off the bottom of the display, do
-                // not draw pixels off the display.
-                if index >= 2048 {
-                    continue;
-                }
+                //// If the sprite is drawing off the bottom of the display, do
+                //// not draw pixels off the display.
+                //if index >= 2048 {
+                //    continue;
+                //}
 
                 // Save the previous state of the pixel before setting it
                 // for collision detection.
                 let prev = self.display[index];
 
                 // Draw the bit to the display.
-                self.display[index] = bit ^ prev;
+                self.display[index] = value ^ prev;
 
                 // Check the previous state of the pixel and check if it
                 // was erased, if so then there was a sprite collision.
@@ -85,8 +104,10 @@ impl Interconnect {
         // TODO: Get rid of when a real framebuffer is aquired. Just a way to
         // visually see what is being drawn in the terminal.
         for i in 0..DISPLAY_HEIGHT {
+            let offset = DISPLAY_WIDTH * i;
+
             for j in 0..DISPLAY_WIDTH {
-                if self.display[j + DISPLAY_HEIGHT * i] == 1 {
+                if self.display[offset + j] == 1 {
                     print!("¶");
                 } else {
                     print!(" ");
