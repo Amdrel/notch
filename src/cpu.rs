@@ -72,23 +72,40 @@ impl Cpu {
 
         match opcode {
             0x6 => {
-                // 6xkk - LD Vx, byte
-                let reg = ((instr << 4) >> 12) as u8;
+                // 6XNN - LD VX, NN
+                //
+                // Sets VX to NN.
+
+                let regx = ((instr << 4) >> 12) as u8;
                 let byte = ((instr << 8) >> 8) as u8;
-                self.set_reg(reg, byte);
+                self.set_reg(regx, byte);
             },
             0xa => {
-                // Annn - LD I, addr
+                // ANNN - LD I, NNN
+                //
+                // Sets I to the address NNN.
+
                 let addr = ((instr << 4) >> 4) as u16;
                 self.i = addr;
             },
             0xd => {
-                // Dxyn - DRW Vx, Vy, nibble
+                // DXYN - DRW VX, VY, N
+                //
+                // Sprites stored in memory at location in index register (I),
+                // 8bits wide. Wraps around the screen. If when drawn, clears a
+                // pixel, register VF is set to 1 otherwise it is zero.
+                //
+                // All drawing is XOR drawing (i.e. it toggles the screen
+                // pixels). Sprites are drawn starting at position VX, VY. N is
+                // the number of 8bit rows that need to be drawn. If N is
+                // greater than 1, second line continues at position VX, VY+1,
+                // and so on.
+
                 let regx = ((instr << 4) >> 12) as u8;
                 let regy = ((instr << 8) >> 12) as u8;
                 let nibble = ((instr << 12) >> 12) as usize;
 
-                // Read n (nibble) bytes out out of memory starting at address
+                // Read N (nibble) bytes out out of memory starting at address
                 // register I into our sprite.
                 let mut sprite = vec![0 as u8; nibble];
                 for i in 0..nibble {
@@ -103,7 +120,10 @@ impl Cpu {
                 self.vf = self.interconnect.draw(x as usize, y as usize, sprite);
             },
             0x2 => {
-                // 2nnn - CALL addr
+                // 2NNN - CALL NNN
+                //
+                // Calls subroutine at NNN.
+
                 let addr = ((instr << 4) >> 4) as u16;
 
                 // Add the current program counter to the call stack.
@@ -116,7 +136,48 @@ impl Cpu {
                 self.run();
 
                 panic!("unhandled");
-            }
+            },
+            0xf => {
+                let regx = ((instr << 4) >> 12) as u8;
+                let identifier = ((instr << 8) >> 8) as u8;
+
+                match identifier {
+                    0x33 => {
+                        // FX33 - LD B, VX
+                        //
+                        // Stores the Binary-coded decimal representation of VX,
+                        // with the most significant of three digits at the
+                        // address in I, the middle digit at I plus 1, and the
+                        // least significant digit at I plus 2. (In other words,
+                        // take the decimal representation of VX, place the
+                        // hundreds digit in memory at location in I, the tens
+                        // digit at location I+1, and the ones digit at
+                        // location I+2.)
+
+                        const DECIMAL_LENGTH: usize = 3;
+
+                        let mut x: u8 = self.get_reg(regx);
+                        let mut digits = vec![0 as u8; DECIMAL_LENGTH];
+                        let mut digit_count: usize = 0;
+
+                        // Organize the digits in the decimal into a slice.
+                        while x > 0 {
+                            digit_count += 1;
+                            digits[DECIMAL_LENGTH - digit_count] = x % 10;
+                            x /= 10;
+                        }
+
+                        // Set I, I+1, and I+3 to the values of the digits.
+                        let i: usize = self.i as usize;
+                        self.interconnect.ram[i] = digits[0];
+                        self.interconnect.ram[i + 1] = digits[1];
+                        self.interconnect.ram[i + 2] = digits[2];
+                    },
+                    _ => {
+                        panic!("Found unknown identifier at instruction: {:#x}", instr);
+                    }
+                }
+            },
             _ => {
                 println!("cpu: {:#?}", self);
                 panic!("Found unknown opcode at instruction: {:#x}", instr);

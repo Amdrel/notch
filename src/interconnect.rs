@@ -98,12 +98,14 @@ impl Interconnect {
                 if self.display[offset + j] == 1 {
                     print!("¶");
                 } else {
-                    print!(" ");
+                    print!(".");
                 }
             }
 
             println!("");
         }
+
+        println!("");
 
         collision
     }
