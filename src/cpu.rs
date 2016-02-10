@@ -173,7 +173,22 @@ impl Cpu {
                         self.interconnect.ram[i + 1] = digits[1];
                         self.interconnect.ram[i + 2] = digits[2];
                     },
+                    0x65 => {
+                        // FX65 - LD VX, [I]
+                        //
+                        // Fills V0 to VX with values from memory starting at
+                        // address I.
+
+                        let i: usize = self.i as usize;
+                        let end_reg = (regx + 1) as usize;
+
+                        for register in 0x0..end_reg {
+                            let mem = self.interconnect.ram[i + register];
+                            self.set_reg(register as u8, mem);
+                        }
+                    },
                     _ => {
+                        println!("cpu: {:#?}", self);
                         panic!("Found unknown identifier at instruction: {:#x}", instr);
                     }
                 }
