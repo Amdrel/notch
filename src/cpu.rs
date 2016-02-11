@@ -187,6 +187,9 @@ impl Cpu {
                             self.set_reg(register as u8, mem);
                         }
                     },
+                    0x29 => {
+                        panic!("Unhandled");
+                    },
                     _ => {
                         println!("cpu: {:#?}", self);
                         panic!("Found unknown identifier at instruction: {:#x}", instr);

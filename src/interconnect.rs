@@ -41,7 +41,7 @@ impl Interconnect {
     }
 
     #[inline(always)]
-    pub fn draw(&mut self, x: usize, y: usize, mut sprite: Vec<u8>) -> u8 {
+    pub fn draw(&mut self, x: usize, y: usize, sprite: Vec<u8>) -> u8 {
         let line = y * DISPLAY_WIDTH;
         let mut collision: u8 = 0;
         let mut values = vec![0 as u8; 8];
@@ -91,9 +91,15 @@ impl Interconnect {
 
         // TODO: Get rid of when a real framebuffer is aquired. Just a way to
         // visually see what is being drawn in the terminal.
+        self.draw_display();
+
+        collision
+    }
+
+    /// Draw the display to the terminal.
+    fn draw_display(&self) {
         for i in 0..DISPLAY_HEIGHT {
             let offset = DISPLAY_WIDTH * i;
-
             for j in 0..DISPLAY_WIDTH {
                 if self.display[offset + j] == 1 {
                     print!("¶");
@@ -101,13 +107,9 @@ impl Interconnect {
                     print!(".");
                 }
             }
-
             println!("");
         }
-
         println!("");
-
-        collision
     }
 }
 

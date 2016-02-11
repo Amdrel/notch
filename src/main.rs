@@ -5,9 +5,10 @@ use std::fs;
 use std::io::Read;
 use std::path::Path;
 
+mod cpu;
+mod fontmanager;
 mod interpreter;
 mod interconnect;
-mod cpu;
 
 fn main() {
     // TODO: Replace unwrap.
