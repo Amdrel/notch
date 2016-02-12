@@ -246,7 +246,9 @@ impl Cpu {
         }
 
         // Increment the program counter to the next instruction.
-        self.pc += INSTRUCTION_SIZE;
+        if !ret {
+            self.pc += INSTRUCTION_SIZE;
+        }
 
         // By default the execution loop in not broken. True will be returned
         // only by a successful RET instruction is executed.
