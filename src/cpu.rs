@@ -71,6 +71,24 @@ impl Cpu {
         //println!("{:#x}", instr);
 
         match opcode {
+            0x2 => {
+                // 2NNN - CALL NNN
+                //
+                // Calls subroutine at NNN.
+
+                let addr = ((instr << 4) >> 4) as u16;
+
+                // Add the current program counter to the call stack.
+                self.stack[self.sp as usize] = self.pc;
+                self.sp += 1;
+
+                // Set the program counter to the call address begin executing
+                // the subroutine.
+                self.pc = addr;
+                self.run();
+
+                panic!("unhandled");
+            },
             0x6 => {
                 // 6XNN - LD VX, NN
                 //
@@ -79,6 +97,17 @@ impl Cpu {
                 let regx = ((instr << 4) >> 12) as u8;
                 let byte = ((instr << 8) >> 8) as u8;
                 self.set_reg(regx, byte);
+            },
+            0x7 => {
+                // 7XNN - ADD VX, NN
+                //
+                // Adds NN to VX.
+
+                let regx = ((instr << 4) >> 12) as u8;
+                let byte = ((instr << 8) >> 8) as u8;
+
+                let result = self.get_reg(regx) + byte;
+                self.set_reg(regx, result);
             },
             0xa => {
                 // ANNN - LD I, NNN
@@ -119,29 +148,21 @@ impl Cpu {
                 // Draw the sprite and store collision detection results in vf.
                 self.vf = self.interconnect.draw(x as usize, y as usize, sprite);
             },
-            0x2 => {
-                // 2NNN - CALL NNN
-                //
-                // Calls subroutine at NNN.
-
-                let addr = ((instr << 4) >> 4) as u16;
-
-                // Add the current program counter to the call stack.
-                self.stack[self.sp as usize] = self.pc;
-                self.sp += 1;
-
-                // Set the program counter to the call address begin executing
-                // the subroutine.
-                self.pc = addr;
-                self.run();
-
-                panic!("unhandled");
-            },
             0xf => {
                 let regx = ((instr << 4) >> 12) as u8;
                 let identifier = ((instr << 8) >> 8) as u8;
 
                 match identifier {
+                    0x29 => {
+                        // FX29 - LD F, VX
+                        //
+                        // Sets I to the location of the sprite for the
+                        // character in VX. Characters 0-F (in hexadecimal) are
+                        // represented by a 4x5 font.
+
+                        let x: u8 = self.get_reg(regx);
+                        self.i = self.interconnect.get_font(x);
+                    },
                     0x33 => {
                         // FX33 - LD B, VX
                         //
@@ -186,16 +207,6 @@ impl Cpu {
                             let mem = self.interconnect.ram[i + register];
                             self.set_reg(register as u8, mem);
                         }
-                    },
-                    0x29 => {
-                        // FX29 - LD F, VX
-                        //
-                        // Sets I to the location of the sprite for the
-                        // character in VX. Characters 0-F (in hexadecimal) are
-                        // represented by a 4x5 font.
-
-                        let x: u8 = self.get_reg(regx);
-                        self.i = self.interconnect.get_font(x);
                     },
                     _ => {
                         println!("cpu: {:#?}", self);
