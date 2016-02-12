@@ -148,6 +148,13 @@ impl Interconnect {
         collision
     }
 
+    /// Clears all pixels on the display by setting them all to an off state.
+    pub fn clear_display(&mut self) {
+        for i in 0..DISPLAY_SIZE {
+            self.display[i] = 0;
+        }
+    }
+
     /// Draw the display to the terminal. Used primarily for debug purposes
     /// and will be replaced in the future when a framebuffer becomes available.
     fn draw_display(&self) {

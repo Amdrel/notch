@@ -67,10 +67,37 @@ impl Cpu {
     #[inline(always)]
     fn execute_instruction(&mut self, instr: u16) -> bool {
         let opcode = (instr >> 12) as u8;
-
-        //println!("{:#x}", instr);
+        let mut ret: bool = false;
 
         match opcode {
+            0x0 => {
+                let identifier = ((instr << 8) >> 8) as u8;
+
+                match identifier {
+                    0xE0 => {
+                        // 00E0 - CLS
+                        // Clears the screen.
+
+                        self.interconnect.clear_display();
+                    },
+                    0xEE => {
+                        // 00EE - RET
+                        // Returns from a subroutine.
+
+                        self.sp -= 1;
+                        self.pc = self.stack[self.sp as usize];
+                        self.stack[self.sp as usize] = 0;
+
+                        // Break out of the execution loop for the current
+                        // subroutine.
+                        ret = true;
+                    },
+                    _ => {
+                        println!("cpu: {:#?}", self);
+                        panic!("Found unknown identifier at instruction: {:#x}, addr: {:#x}", instr, self.pc);
+                    },
+                }
+            },
             0x2 => {
                 // 2NNN - CALL NNN
                 //
@@ -86,8 +113,6 @@ impl Cpu {
                 // the subroutine.
                 self.pc = addr;
                 self.run();
-
-                panic!("unhandled");
             },
             0x6 => {
                 // 6XNN - LD VX, NN
@@ -211,19 +236,21 @@ impl Cpu {
                     _ => {
                         println!("cpu: {:#?}", self);
                         panic!("Found unknown identifier at instruction: {:#x}, addr: {:#x}", instr, self.pc);
-                    }
+                    },
                 }
             },
             _ => {
                 println!("cpu: {:#?}", self);
                 panic!("Found unknown opcode at instruction: {:#x}, addr: {:#x}", instr, self.pc);
-            }
+            },
         }
 
         // Increment the program counter to the next instruction.
         self.pc += INSTRUCTION_SIZE;
 
-        false
+        // By default the execution loop in not broken. True will be returned
+        // only by a successful RET instruction is executed.
+        ret
     }
 
     /// Gets the value at a specified register.
