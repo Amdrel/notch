@@ -192,13 +192,13 @@ impl Cpu {
                     },
                     _ => {
                         println!("cpu: {:#?}", self);
-                        panic!("Found unknown identifier at instruction: {:#x}", instr);
+                        panic!("Found unknown identifier at instruction: {:#x}, addr: {:#x}", instr, self.pc);
                     }
                 }
             },
             _ => {
                 println!("cpu: {:#?}", self);
-                panic!("Found unknown opcode at instruction: {:#x}", instr);
+                panic!("Found unknown opcode at instruction: {:#x}, addr: {:#x}", instr, self.pc);
             }
         }
 

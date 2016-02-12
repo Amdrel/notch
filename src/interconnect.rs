@@ -4,6 +4,12 @@ use super::byteorder::{BigEndian, ByteOrder};
 // Size of the memory map of a CHIP-8 interpreter is 4kb.
 const RAM_SIZE: usize = 4096;
 
+// Where fonts are stored in interpreter memory.
+const FONT_OFFSET: usize = 0;
+
+const CHARACTER_SIZE: usize = 5;
+const CHARACTER_COUNT: usize = 16;
+
 // Display size parameters.
 const DISPLAY_WIDTH: usize = 64;
 const DISPLAY_HEIGHT: usize = 32;
@@ -29,17 +35,56 @@ impl Interconnect {
             ram[i + END_RESERVED] = rom[i];
         }
 
-        Interconnect {
+        let mut interconnect = Interconnect {
             ram: ram,
             display: vec![0; DISPLAY_SIZE],
-        }
+        };
+        interconnect.dump_fonts();
+        interconnect
     }
 
+    /// Reads a 16 bit word from ram. This function is used mainly to read and
+    /// execute instructions.
     #[inline(always)]
     pub fn read_word(&self, addr: u16) -> u16 {
         BigEndian::read_u16(&self.ram[addr as usize..])
     }
 
+    /// Dumps the standard CHIP-8 fonts to ram.
+    pub fn dump_fonts(&mut self) {
+        // The characters 0-F to be stored in ram as a font for chip 8 programs.
+        // Vectorception for ease of reading.
+        let fonts = vec![
+            vec![0xF0, 0x90, 0x90, 0x90, 0xF0], // 0
+            vec![0x20, 0x60, 0x20, 0x20, 0x70], // 1
+            vec![0xF0, 0x10, 0xf0, 0x80, 0xF0], // 2
+            vec![0xF0, 0x10, 0xF0, 0x10, 0xF0], // 3
+            vec![0x90, 0x90, 0xF0, 0x10, 0x10], // 4
+            vec![0xF0, 0x80, 0xF0, 0x10, 0xF0], // 5
+            vec![0xF0, 0x80, 0xF0, 0x90, 0xF0], // 6
+            vec![0xF0, 0x10, 0x20, 0x40, 0x40], // 7
+            vec![0xF0, 0x90, 0xF0, 0x90, 0xF0], // 8
+            vec![0xF0, 0x90, 0xF0, 0x10, 0xF0], // 9
+            vec![0xF0, 0x90, 0xF0, 0x90, 0x90], // A
+            vec![0xE0, 0x90, 0xE0, 0x90, 0xE0], // B
+            vec![0xF0, 0x80, 0x80, 0x80, 0xF0], // C
+            vec![0xE0, 0x90, 0x90, 0x90, 0xE0], // D
+            vec![0xF0, 0x80, 0xF0, 0x80, 0xF0], // E
+            vec![0xF0, 0x80, 0xF0, 0x80, 0x80], // F
+        ];
+
+        for i in 0..CHARACTER_COUNT {
+            // Find where the current character should be stored in memory.
+            let start: usize = FONT_OFFSET + i * CHARACTER_SIZE;
+
+            // Copy the current character into the calculated spot in memory.
+            for j in 0..CHARACTER_SIZE {
+                self.ram[start + j] = fonts[i][j];
+            }
+        }
+    }
+
+    /// Draws a sprite to the display.
     #[inline(always)]
     pub fn draw(&mut self, x: usize, y: usize, sprite: Vec<u8>) -> u8 {
         let line = y * DISPLAY_WIDTH;
@@ -96,7 +141,8 @@ impl Interconnect {
         collision
     }
 
-    /// Draw the display to the terminal.
+    /// Draw the display to the terminal. Used primarily for debug purposes
+    /// and will be replaced in the future when a framebuffer becomes available.
     fn draw_display(&self) {
         for i in 0..DISPLAY_HEIGHT {
             let offset = DISPLAY_WIDTH * i;
