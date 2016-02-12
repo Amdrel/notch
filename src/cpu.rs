@@ -178,6 +178,22 @@ impl Cpu {
                 let identifier = ((instr << 8) >> 8) as u8;
 
                 match identifier {
+                    0x07 => {
+                        // FX07 - LD VX, DT
+                        //
+                        // Sets VX to the value of the delay timer.
+
+                        let dt = self.dt;
+                        self.set_reg(regx, dt);
+                    },
+                    0x15 => {
+                        // FX15 - LD DT, VX
+                        //
+                        // Sets the delay timer to VX.
+
+                        let x: u8 = self.get_reg(regx);
+                        self.dt = x;
+                    },
                     0x29 => {
                         // FX29 - LD F, VX
                         //
