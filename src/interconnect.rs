@@ -7,6 +7,7 @@ const RAM_SIZE: usize = 4096;
 // Where fonts are stored in interpreter memory.
 const FONT_OFFSET: usize = 0;
 
+// Font size constants.
 const CHARACTER_SIZE: usize = 5;
 const CHARACTER_COUNT: usize = 16;
 
@@ -15,7 +16,7 @@ const DISPLAY_WIDTH: usize = 64;
 const DISPLAY_HEIGHT: usize = 32;
 const DISPLAY_SIZE: usize = DISPLAY_WIDTH * DISPLAY_HEIGHT;
 
-// Memory map constants.
+// Memory map constraints.
 pub const START_RESERVED: usize = 0x000;
 pub const END_RESERVED: usize = 0x200;
 pub const END_PROGRAM_SPACE: usize = 0xFFF;
@@ -82,6 +83,12 @@ impl Interconnect {
                 self.ram[start + j] = fonts[i][j];
             }
         }
+    }
+
+    /// Find the memory address of the requested character.
+    #[inline(always)]
+    pub fn get_font(&self, font: u8) -> u16 {
+        FONT_OFFSET as u16 + font as u16 * CHARACTER_SIZE as u16
     }
 
     /// Draws a sprite to the display.

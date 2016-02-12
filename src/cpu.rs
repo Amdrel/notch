@@ -188,7 +188,14 @@ impl Cpu {
                         }
                     },
                     0x29 => {
-                        panic!("Unhandled");
+                        // FX29 - LD F, VX
+                        //
+                        // Sets I to the location of the sprite for the
+                        // character in VX. Characters 0-F (in hexadecimal) are
+                        // represented by a 4x5 font.
+
+                        let x: u8 = self.get_reg(regx);
+                        self.i = self.interconnect.get_font(x);
                     },
                     _ => {
                         println!("cpu: {:#?}", self);
