@@ -117,6 +117,19 @@ impl Cpu {
                 self.pc = addr;
                 self.run();
             },
+            0x3 => {
+                // 3XNN - SE VX, NN
+                //
+                // Skips the next instruction if VX equals NN.
+
+                let regx = ((instr << 4) >> 12) as u8;
+                let byte = ((instr << 8) >> 8) as u8;
+                let x = self.get_reg(regx);
+
+                if x == byte {
+                    self.pc += 2;
+                }
+            }
             0x6 => {
                 // 6XNN - LD VX, NN
                 //
