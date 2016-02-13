@@ -348,7 +348,6 @@ impl Cpu {
         let st_enabled = self.st > 0;
 
         if dt_enabled || st_enabled {
-            println!("SLEEPY TIME: {:?}", self.dt);
             sleep(Duration::from_millis(TIMER_DELAY));
 
             if dt_enabled {

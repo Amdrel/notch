@@ -4,6 +4,7 @@ use super::byteorder::{BigEndian, ByteOrder};
 
 use super::sdl2;
 use super::sdl2::pixels::Color;
+use super::sdl2::rect::Point;
 use super::sdl2::event::Event;
 use super::sdl2::keyboard::Keycode;
 
@@ -58,7 +59,10 @@ impl Interconnect {
             .unwrap();
 
         let mut renderer = window.renderer().build().unwrap();
-        renderer.set_draw_color(Color::RGB(255, 0, 0));
+        renderer.set_scale(10.0, 10.0);
+
+        // Clear the screen to black.
+        renderer.set_draw_color(Color::RGB(0, 0, 0));
         renderer.clear();
         renderer.present();
 
@@ -203,19 +207,21 @@ impl Interconnect {
 
     /// Draw the display to the terminal. Used primarily for debug purposes
     /// and will be replaced in the future when a framebuffer becomes available.
-    fn draw_display(&self) {
+    fn draw_display(&mut self) {
+        // Clear the screen to black.
+        self.renderer.set_draw_color(Color::RGB(0, 0, 0));
+        self.renderer.clear();
+
+        self.renderer.set_draw_color(Color::RGB(255, 255, 255));
         for i in 0..DISPLAY_HEIGHT {
             let offset = DISPLAY_WIDTH * i;
             for j in 0..DISPLAY_WIDTH {
                 if self.display[offset + j] == 1 {
-                    print!("¶");
-                } else {
-                    print!(".");
+                    self.renderer.draw_point(Point::new(j as i32, i as i32));
                 }
             }
-            println!("");
         }
-        println!("");
+        self.renderer.present();
     }
 }
 
