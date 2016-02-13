@@ -191,8 +191,8 @@ impl Interconnect {
             }
         }
 
-        // TODO: Get rid of when a real framebuffer is aquired. Just a way to
-        // visually see what is being drawn in the terminal.
+        // Draw to the SDL surface. Humans have these things called "eyes" and
+        // they get upset when they cannot see things.
         self.draw_display();
 
         collision
@@ -205,13 +205,13 @@ impl Interconnect {
         }
     }
 
-    /// Draw the display to the terminal. Used primarily for debug purposes
-    /// and will be replaced in the future when a framebuffer becomes available.
+    /// Draw the display to the SDL surface. All pixels are white.
     fn draw_display(&mut self) {
         // Clear the screen to black.
         self.renderer.set_draw_color(Color::RGB(0, 0, 0));
         self.renderer.clear();
 
+        // Draw the display to the SDL surface.
         self.renderer.set_draw_color(Color::RGB(255, 255, 255));
         for i in 0..DISPLAY_HEIGHT {
             let offset = DISPLAY_WIDTH * i;
