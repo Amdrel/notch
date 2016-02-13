@@ -6,7 +6,7 @@ use super::interconnect::END_RESERVED;
 const INSTRUCTION_SIZE: u16 = 2;
 const TIMER_DELAY: u64 = 16;
 
-#[derive(Default, Debug)]
+#[derive(Debug)]
 pub struct Cpu {
     // Interconnect is used to control system resources like rom and memory.
     interconnect: Interconnect,
@@ -49,15 +49,55 @@ pub struct Cpu {
 impl Cpu {
     pub fn new(interconnect: Interconnect) -> Cpu {
         Cpu {
+            // Interconnect is used to control system resources like rom and memory.
             interconnect: interconnect,
+
+            // Program counter.
             pc: END_RESERVED as u16,
-            ..Cpu::default()
+
+            // The function call stack.
+            stack: [0; 16],
+
+            // Stack pointer.
+            sp: 0,
+
+            // General purpose registers v0-vf.
+            v0: 0,
+            v1: 0,
+            v2: 0,
+            v3: 0,
+            v4: 0,
+            v5: 0,
+            v6: 0,
+            v7: 0,
+            v8: 0,
+            v9: 0,
+            va: 0,
+            vb: 0,
+            vc: 0,
+            vd: 0,
+            ve: 0,
+            vf: 0,
+
+            // Address register "I".
+            i: 0,
+
+            // Timer and sound registers.
+            dt: 0,
+            st: 0,
         }
     }
 
     /// Execute instructions from ram.
     pub fn run(&mut self) {
         loop {
+            // Interconnect can signal the emulator to halt.
+            // This is because interconnect works with the native window system
+            // and handles close events.
+            if self.interconnect.halt {
+                break
+            }
+
             let word = self.interconnect.read_word(self.pc);
 
             // Execute until the subroutine ends.
@@ -295,6 +335,7 @@ impl Cpu {
         }
 
         self.handle_timers();
+        self.interconnect.handle_input();
 
         // By default the execution loop in not broken. True will be returned
         // only by a successful RET instruction is executed.

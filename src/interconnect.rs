@@ -1,5 +1,11 @@
 use std::fmt;
+
 use super::byteorder::{BigEndian, ByteOrder};
+
+use super::sdl2;
+use super::sdl2::pixels::Color;
+use super::sdl2::event::Event;
+use super::sdl2::keyboard::Keycode;
 
 // Size of the memory map of a CHIP-8 interpreter is 4kb.
 const RAM_SIZE: usize = 4096;
@@ -21,8 +27,14 @@ pub const START_RESERVED: usize = 0x000;
 pub const END_RESERVED: usize = 0x200;
 pub const END_PROGRAM_SPACE: usize = 0xFFF;
 
-#[derive(Default)]
 pub struct Interconnect {
+    sdl_context: sdl2::Sdl,
+    video_subsystem: sdl2::VideoSubsystem,
+    renderer: sdl2::render::Renderer<'static>,
+    event_pump: sdl2::EventPump,
+
+    pub halt: bool,
+
     pub ram: Vec<u8>,
     pub display: Vec<u8>,
 }
@@ -36,12 +48,46 @@ impl Interconnect {
             ram[i + END_RESERVED] = rom[i];
         }
 
+        // Setup SDL for graphics and audio.
+        let sdl_context = sdl2::init().unwrap();
+        let video_subsystem = sdl_context.video().unwrap();
+        let window = video_subsystem.window("Notch", 640, 320)
+            .position_centered()
+            .opengl()
+            .build()
+            .unwrap();
+
+        let mut renderer = window.renderer().build().unwrap();
+        renderer.set_draw_color(Color::RGB(255, 0, 0));
+        renderer.clear();
+        renderer.present();
+
+        let mut event_pump = sdl_context.event_pump().unwrap();
+
         let mut interconnect = Interconnect {
+            sdl_context: sdl_context,
+            video_subsystem: video_subsystem,
+            renderer: renderer,
+            event_pump: event_pump,
+
+            halt: false,
+
             ram: ram,
             display: vec![0; DISPLAY_SIZE],
         };
         interconnect.dump_fonts();
         interconnect
+    }
+
+    pub fn handle_input(&mut self) {
+        for event in self.event_pump.poll_iter() {
+            match event {
+                Event::Quit {..} | Event::KeyDown { keycode: Some(Keycode::Escape), .. } => {
+                    self.halt = true;
+                },
+                _ => {}
+            }
+        }
     }
 
     /// Reads a 16 bit word from ram. This function is used mainly to read and
