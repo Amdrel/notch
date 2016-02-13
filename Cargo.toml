@@ -5,3 +5,4 @@ authors = [ "Walter Kuppens <reshurum@gmail.com>" ]
 
 [dependencies]
 byteorder = "0.4"
+sdl2 = "0.14"
