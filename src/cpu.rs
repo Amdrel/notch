@@ -71,6 +71,9 @@ impl Cpu {
     fn execute_instruction(&mut self, instr: u16) -> bool {
         let opcode = (instr >> 12) as u8;
         let mut ret: bool = false;
+        let mut skip: bool = false;
+
+        //println!("{:x}", instr);
 
         match opcode {
             0x0 => {
@@ -108,6 +111,7 @@ impl Cpu {
 
                 let addr = ((instr << 4) >> 4) as u16;
                 self.pc = addr;
+                skip = true;
             },
             0x2 => {
                 // 2NNN - CALL NNN
@@ -209,7 +213,6 @@ impl Cpu {
 
                         let dt = self.dt;
                         self.set_reg(regx, dt);
-                        println!("cpu: {:#?}", self);
                     },
                     0x15 => {
                         // FX15 - LD DT, VX
@@ -287,7 +290,7 @@ impl Cpu {
         }
 
         // Increment the program counter to the next instruction.
-        if !ret {
+        if !ret && !skip {
             self.pc += INSTRUCTION_SIZE;
         }
 
