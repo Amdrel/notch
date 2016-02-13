@@ -1,7 +1,10 @@
+use std::thread::sleep;
+use std::time::Duration;
 use super::interconnect::Interconnect;
 use super::interconnect::END_RESERVED;
 
 const INSTRUCTION_SIZE: u16 = 2;
+const TIMER_DELAY: u64 = 16;
 
 #[derive(Default, Debug)]
 pub struct Cpu {
@@ -266,9 +269,29 @@ impl Cpu {
             self.pc += INSTRUCTION_SIZE;
         }
 
+        self.handle_timers();
+
         // By default the execution loop in not broken. True will be returned
         // only by a successful RET instruction is executed.
         ret
+    }
+
+    /// Handle the delay timer and play sounds.
+    fn handle_timers(&mut self) {
+        let dt_enabled = self.dt > 0;
+        let st_enabled = self.st > 0;
+
+        if dt_enabled || st_enabled {
+            println!("SLEEPY TIME");
+            sleep(Duration::from_millis(TIMER_DELAY));
+
+            if dt_enabled {
+                self.dt -= 1;
+            }
+            if st_enabled {
+                self.st -= 1;
+            }
+        }
     }
 
     /// Gets the value at a specified register.
