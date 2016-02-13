@@ -101,6 +101,14 @@ impl Cpu {
                     },
                 }
             },
+            0x1 => {
+                // 1NNN - JP NNN
+                //
+                // Jumps to address NNN.
+
+                let addr = ((instr << 4) >> 4) as u16;
+                self.pc = addr;
+            },
             0x2 => {
                 // 2NNN - CALL NNN
                 //
@@ -201,6 +209,7 @@ impl Cpu {
 
                         let dt = self.dt;
                         self.set_reg(regx, dt);
+                        println!("cpu: {:#?}", self);
                     },
                     0x15 => {
                         // FX15 - LD DT, VX
@@ -295,7 +304,7 @@ impl Cpu {
         let st_enabled = self.st > 0;
 
         if dt_enabled || st_enabled {
-            println!("SLEEPY TIME");
+            println!("SLEEPY TIME: {:x}", self.dt);
             sleep(Duration::from_millis(TIMER_DELAY));
 
             if dt_enabled {
