@@ -1,5 +1,7 @@
 use std::thread::sleep;
 use std::time::Duration;
+
+use super::rand::random;
 use super::interconnect::Interconnect;
 use super::interconnect::END_RESERVED;
 
@@ -198,7 +200,6 @@ impl Cpu {
 
                 let regx = ((instr << 4) >> 12) as u8;
                 let byte = ((instr << 8) >> 8) as u8;
-
                 let result = self.get_reg(regx) + byte;
                 self.set_reg(regx, result);
             },
@@ -210,6 +211,17 @@ impl Cpu {
                 let addr = ((instr << 4) >> 4) as u16;
                 self.i = addr;
             },
+            0xc => {
+                // CXNN - RND VX, NN
+                //
+                // Sets VX to the result of a bitwise and operation on a
+                // random number and NN.
+
+                let regx = ((instr << 4) >> 12) as u8;
+                let byte = ((instr << 8) >> 8) as u8;
+                let rnd = random::<u8>();
+                self.set_reg(regx, rnd & byte);
+            }
             0xd => {
                 // DXYN - DRW VX, VY, N
                 //

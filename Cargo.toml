@@ -4,5 +4,6 @@ version = "0.0.1"
 authors = [ "Walter Kuppens <reshurum@gmail.com>" ]
 
 [dependencies]
+rand = "0.3.14"
 byteorder = "0.4"
 sdl2 = "0.14"

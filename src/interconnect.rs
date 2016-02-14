@@ -1,7 +1,6 @@
 use std::fmt;
 
 use super::byteorder::{BigEndian, ByteOrder};
-
 use super::sdl2;
 use super::sdl2::pixels::Color;
 use super::sdl2::rect::Point;
@@ -203,6 +202,7 @@ impl Interconnect {
         for i in 0..DISPLAY_SIZE {
             self.display[i] = 0;
         }
+        self.draw_display();
     }
 
     /// Draw the display to the SDL surface. All pixels are white.
