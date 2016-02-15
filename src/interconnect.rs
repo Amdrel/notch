@@ -33,9 +33,17 @@ pub struct Interconnect {
     renderer: sdl2::render::Renderer<'static>,
     event_pump: sdl2::EventPump,
 
+    // The current keyboard input state.
+    pub input_state: [bool; 0xF],
+
+    // The CPU reads this value before executing instructions, and when set to
+    // true the CPU will stop executing.
     pub halt: bool,
 
+    // RAM used by the application. 4k in size.
     pub ram: Vec<u8>,
+
+    // 64x32 buffer for the application to write to.
     pub display: Vec<u8>,
 }
 
@@ -57,6 +65,8 @@ impl Interconnect {
             .build()
             .unwrap();
 
+        // Create a renderer that is scaled up a bit. The CHIP-8 display is
+        // very small for today's standards.
         let mut renderer = window.renderer().build().unwrap();
         renderer.set_scale(10.0, 10.0);
 
@@ -72,9 +82,8 @@ impl Interconnect {
             video_subsystem: video_subsystem,
             renderer: renderer,
             event_pump: event_pump,
-
+            input_state: [false; 0xF],
             halt: false,
-
             ram: ram,
             display: vec![0; DISPLAY_SIZE],
         };
@@ -98,40 +107,6 @@ impl Interconnect {
     #[inline(always)]
     pub fn read_word(&self, addr: u16) -> u16 {
         BigEndian::read_u16(&self.ram[addr as usize..])
-    }
-
-    /// Dumps the standard CHIP-8 fonts to ram.
-    pub fn dump_fonts(&mut self) {
-        // The characters 0-F to be stored in ram as a font for chip 8 programs.
-        // Vectorception for ease of reading.
-        let fonts = vec![
-            vec![0xF0, 0x90, 0x90, 0x90, 0xF0], // 0
-            vec![0x20, 0x60, 0x20, 0x20, 0x70], // 1
-            vec![0xF0, 0x10, 0xf0, 0x80, 0xF0], // 2
-            vec![0xF0, 0x10, 0xF0, 0x10, 0xF0], // 3
-            vec![0x90, 0x90, 0xF0, 0x10, 0x10], // 4
-            vec![0xF0, 0x80, 0xF0, 0x10, 0xF0], // 5
-            vec![0xF0, 0x80, 0xF0, 0x90, 0xF0], // 6
-            vec![0xF0, 0x10, 0x20, 0x40, 0x40], // 7
-            vec![0xF0, 0x90, 0xF0, 0x90, 0xF0], // 8
-            vec![0xF0, 0x90, 0xF0, 0x10, 0xF0], // 9
-            vec![0xF0, 0x90, 0xF0, 0x90, 0x90], // A
-            vec![0xE0, 0x90, 0xE0, 0x90, 0xE0], // B
-            vec![0xF0, 0x80, 0x80, 0x80, 0xF0], // C
-            vec![0xE0, 0x90, 0x90, 0x90, 0xE0], // D
-            vec![0xF0, 0x80, 0xF0, 0x80, 0xF0], // E
-            vec![0xF0, 0x80, 0xF0, 0x80, 0x80], // F
-        ];
-
-        for i in 0..CHARACTER_COUNT {
-            // Find where the current character should be stored in memory.
-            let start: usize = FONT_OFFSET + i * CHARACTER_SIZE;
-
-            // Copy the current character into the calculated spot in memory.
-            for j in 0..CHARACTER_SIZE {
-                self.ram[start + j] = fonts[i][j];
-            }
-        }
     }
 
     /// Find the memory address of the requested character.
@@ -222,6 +197,40 @@ impl Interconnect {
             }
         }
         self.renderer.present();
+    }
+
+    /// Dumps the standard CHIP-8 fonts to ram.
+    fn dump_fonts(&mut self) {
+        // The characters 0-F to be stored in ram as a font for chip 8 programs.
+        // Vectorception for ease of reading.
+        let fonts = vec![
+            vec![0xF0, 0x90, 0x90, 0x90, 0xF0], // 0
+            vec![0x20, 0x60, 0x20, 0x20, 0x70], // 1
+            vec![0xF0, 0x10, 0xf0, 0x80, 0xF0], // 2
+            vec![0xF0, 0x10, 0xF0, 0x10, 0xF0], // 3
+            vec![0x90, 0x90, 0xF0, 0x10, 0x10], // 4
+            vec![0xF0, 0x80, 0xF0, 0x10, 0xF0], // 5
+            vec![0xF0, 0x80, 0xF0, 0x90, 0xF0], // 6
+            vec![0xF0, 0x10, 0x20, 0x40, 0x40], // 7
+            vec![0xF0, 0x90, 0xF0, 0x90, 0xF0], // 8
+            vec![0xF0, 0x90, 0xF0, 0x10, 0xF0], // 9
+            vec![0xF0, 0x90, 0xF0, 0x90, 0x90], // A
+            vec![0xE0, 0x90, 0xE0, 0x90, 0xE0], // B
+            vec![0xF0, 0x80, 0x80, 0x80, 0xF0], // C
+            vec![0xE0, 0x90, 0x90, 0x90, 0xE0], // D
+            vec![0xF0, 0x80, 0xF0, 0x80, 0xF0], // E
+            vec![0xF0, 0x80, 0xF0, 0x80, 0x80], // F
+        ];
+
+        for i in 0..CHARACTER_COUNT {
+            // Find where the current character should be stored in memory.
+            let start: usize = FONT_OFFSET + i * CHARACTER_SIZE;
+
+            // Copy the current character into the calculated spot in memory.
+            for j in 0..CHARACTER_SIZE {
+                self.ram[start + j] = fonts[i][j];
+            }
+        }
     }
 }
 
