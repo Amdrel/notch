@@ -258,6 +258,17 @@ impl Cpu {
                 let identifier = ((instr << 8) >> 8) as u8;
 
                 match identifier {
+                    0x9e => {
+                        // EX9E - SKP VX
+                        //
+                        // Skips the next instruction if the key stored in VX
+                        // is pressed.
+
+                        let x = self.get_reg(regx);
+                        if self.interconnect.input_state[x as usize] {
+                            self.pc += INSTRUCTION_SIZE;
+                        }
+                    },
                     0xa1 => {
                         // EXA1 - SKNP VX
                         //
