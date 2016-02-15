@@ -181,7 +181,7 @@ impl Cpu {
                 let x = self.get_reg(regx);
 
                 if x == byte {
-                    self.pc += 2;
+                    self.pc += INSTRUCTION_SIZE;
                 }
             }
             0x6 => {
@@ -252,6 +252,28 @@ impl Cpu {
 
                 // Draw the sprite and store collision detection results in vf.
                 self.vf = self.interconnect.draw(x as usize, y as usize, sprite);
+            },
+            0xe => {
+                let regx = ((instr << 4) >> 12) as u8;
+                let identifier = ((instr << 8) >> 8) as u8;
+
+                match identifier {
+                    0xa1 => {
+                        // EXA1 - SKNP VX
+                        //
+                        // Skips the next instruction if the key stored in VX
+                        // isn't pressed.
+
+                        let x = self.get_reg(regx);
+                        if !self.interconnect.input_state[x as usize] {
+                            self.pc += INSTRUCTION_SIZE;
+                        }
+                    },
+                    _ => {
+                        println!("cpu: {:#?}", self);
+                        panic!("Found unknown identifier at instruction: {:#x}, addr: {:#x}", instr, self.pc);
+                    },
+                }
             },
             0xf => {
                 let regx = ((instr << 4) >> 12) as u8;
