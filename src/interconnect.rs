@@ -61,7 +61,6 @@ impl Interconnect {
         let video_subsystem = sdl_context.video().unwrap();
         let window = video_subsystem.window("Notch", 640, 320)
             .position_centered()
-            .opengl()
             .build()
             .unwrap();
 

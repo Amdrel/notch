@@ -152,8 +152,14 @@ impl Cpu {
                         ret = true;
                     },
                     _ => {
-                        println!("cpu: {:#?}", self);
-                        panic!("Found unknown identifier at instruction: {:#x}, addr: {:#x}", instr, self.pc);
+                        // 0NNN - SYS NNN
+                        //
+                        // Jump to a machine code routine at NNN. This operation
+                        // is not implemented on purpose.
+
+                        panic!("Unhandled, 0NNN is not implemented in most \
+                               modern interpreters and is not used by many \
+                               roms.");
                     },
                 }
             },
@@ -208,7 +214,21 @@ impl Cpu {
                 if x != byte {
                     self.pc += INSTRUCTION_SIZE;
                 }
-            }
+            },
+            0x5 => {
+                // 5XY0 - SE VX, VY
+                //
+                // Skip the next instruction if VX == VY.
+
+                let regx = ((instr << 4) >> 12) as u8;
+                let regy = ((instr << 8) >> 12) as u8;
+                let x = self.get_reg(regx);
+                let y = self.get_reg(regy);
+
+                if x == y {
+                    self.pc += INSTRUCTION_SIZE;
+                }
+            },
             0x6 => {
                 // 6XNN - LD VX, NN
                 //
@@ -353,7 +373,21 @@ impl Cpu {
                         panic!("Found unknown identifier at instruction: {:#x}, addr: {:#x}", instr, self.pc);
                     },
                 }
-            }
+            },
+            0x9 => {
+                // 9XY0 - SNE VX, VY
+                //
+                // Skip the next instruction if VX != VY.
+
+                let regx = ((instr << 4) >> 12) as u8;
+                let regx = ((instr << 8) >> 12) as u8;
+                let x = self.get_reg(x);
+                let y = self.get_reg(y);
+
+                if x != y {
+                    self.pc += INSTRUCTION_SIZE;
+                }
+            },
             0xa => {
                 // ANNN - LD I, NNN
                 //
@@ -361,6 +395,15 @@ impl Cpu {
 
                 let addr = ((instr << 4) >> 4) as u16;
                 self.i = addr;
+            },
+            0xb => {
+                // BNNN - JP V0, NNN
+                //
+                // The program counter is set to NNN plus the value of V0.
+
+                let addr = ((instr << 4) >> 4) as u16;
+                self.pc = addr.wrapping_add(self.v0 as u16);
+                skip = true;
             },
             0xc => {
                 // CXNN - RND VX, NN
