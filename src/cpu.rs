@@ -101,12 +101,17 @@ impl Cpu {
                 break
             }
 
+            // Read a word from ram where the program counter currently points
+            // to execute.
             let word = self.interconnect.read_word(self.pc);
 
-            // Execute until the subroutine ends.
+            // Execute until the subroutine ends if we are in one.
             if self.execute_instruction(word) {
                 break
             }
+
+            // Poll for input and set the input state.
+            self.interconnect.handle_input();
         }
     }
 
@@ -440,13 +445,37 @@ impl Cpu {
                         let dt = self.dt;
                         self.set_reg(regx, dt);
                     },
+                    0x0a => {
+                        // Fx0A - LD VX, K
+                        //
+                        // All execution stops until a key is pressed, then the
+                        // value of that key is stored in Vx.
+
+                        panic!("Unhandled");
+                    },
                     0x15 => {
                         // FX15 - LD DT, VX
                         //
                         // Sets the delay timer to VX.
 
-                        let x: u8 = self.get_reg(regx);
+                        let x = self.get_reg(regx);
                         self.dt = x;
+                    },
+                    0x18 => {
+                        // FX18 - LD ST, VX
+                        //
+                        // ST is set equal to the value of VX.
+
+                        let x = self.get_reg(regx);
+                        self.st = x;
+                    },
+                    0x1e => {
+                        // FX1E - ADD I, VX
+                        //
+                        // The values of I and Vx are added, and the results
+                        // are stored in I.
+
+                        panic!("Unhandled");
                     },
                     0x29 => {
                         // FX29 - LD F, VX
@@ -455,7 +484,7 @@ impl Cpu {
                         // character in VX. Characters 0-F (in hexadecimal) are
                         // represented by a 4x5 font.
 
-                        let x: u8 = self.get_reg(regx);
+                        let x = self.get_reg(regx);
                         self.i = self.interconnect.get_font(x);
                     },
                     0x33 => {
@@ -472,7 +501,7 @@ impl Cpu {
 
                         const DECIMAL_LENGTH: usize = 3;
 
-                        let mut x: u8 = self.get_reg(regx);
+                        let mut x = self.get_reg(regx);
                         let mut digits = vec![0 as u8; DECIMAL_LENGTH];
                         let mut digit_count: usize = 0;
 
@@ -484,10 +513,18 @@ impl Cpu {
                         }
 
                         // Set I, I+1, and I+3 to the values of the digits.
-                        let i: usize = self.i as usize;
+                        let i = self.i as usize;
                         self.interconnect.ram[i] = digits[0];
                         self.interconnect.ram[i + 1] = digits[1];
                         self.interconnect.ram[i + 2] = digits[2];
+                    },
+                    0x55 => {
+                        // FX55 - LD [I], VX
+                        //
+                        // The interpreter copies the values of registers V0
+                        // through VX into memory, starting at the address in I.
+
+                        panic!("Unhandled");
                     },
                     0x65 => {
                         // FX65 - LD VX, [I]
@@ -495,7 +532,7 @@ impl Cpu {
                         // Fills V0 to VX with values from memory starting at
                         // address I.
 
-                        let i: usize = self.i as usize;
+                        let i = self.i as usize;
                         let end_reg = (regx + 1) as usize;
 
                         for register in 0x0..end_reg {
@@ -521,7 +558,6 @@ impl Cpu {
         }
 
         self.handle_timers();
-        self.interconnect.handle_input();
 
         // By default the execution loop in not broken. True will be returned
         // only by a successful RET instruction is executed.
@@ -534,6 +570,7 @@ impl Cpu {
         let st_enabled = self.st > 0;
 
         if dt_enabled || st_enabled {
+            println!("sleep: {:?}", self.dt);
             sleep(Duration::from_millis(TIMER_DELAY));
 
             if dt_enabled {
