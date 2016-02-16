@@ -380,9 +380,9 @@ impl Cpu {
                 // Skip the next instruction if VX != VY.
 
                 let regx = ((instr << 4) >> 12) as u8;
-                let regx = ((instr << 8) >> 12) as u8;
-                let x = self.get_reg(x);
-                let y = self.get_reg(y);
+                let regy = ((instr << 8) >> 12) as u8;
+                let x = self.get_reg(regx);
+                let y = self.get_reg(regy);
 
                 if x != y {
                     self.pc += INSTRUCTION_SIZE;
