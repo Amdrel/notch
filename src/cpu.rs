@@ -203,6 +203,132 @@ impl Cpu {
                 let result = self.get_reg(regx) + byte;
                 self.set_reg(regx, result);
             },
+            0x8 => {
+                let regx = ((instr << 4) >> 12) as u8;
+                let regy = ((instr << 8) >> 12) as u8;
+                let identifier = ((instr << 12) >> 12) as u8;
+
+                match identifier {
+                    0x0 => {
+                        // 8XY0 - LD VX, VY
+                        //
+                        // Sets VX to VY.
+
+                        let y = self.get_reg(regy);
+                        self.set_reg(regx, y);
+                    },
+                    0x1 => {
+                        // 8XY1 - OR VX, VY
+                        //
+                        // Sets VX to VX or VY.
+
+                        let x = self.get_reg(regx);
+                        let y = self.get_reg(regy);
+                        self.set_reg(regx, x | y);
+                    },
+                    0x2 => {
+                        // 8XY2 - AND VX, VY
+                        //
+                        // Sets VX to VX and VY.
+
+                        let x = self.get_reg(regx);
+                        let y = self.get_reg(regy);
+                        self.set_reg(regx, x & y);
+                    },
+                    0x3 => {
+                        // 8XY3 - XOR VX, VY
+                        //
+                        // Sets VX to VX xor VY.
+
+                        let x = self.get_reg(regx);
+                        let y = self.get_reg(regy);
+                        self.set_reg(regx, x ^ y);
+                    },
+                    0x4 => {
+                        // 8XY4 - ADD VX, VY
+                        //
+                        // The values of VX and VY are added together. If the
+                        // result is greater than 8 bits (i.e., > 255,) VF is
+                        // set to 1, otherwise 0. Only the lowest 8 bits of the
+                        // result are kept, and stored in VX.
+
+                        let x = self.get_reg(regx) as u16;
+                        let y = self.get_reg(regy) as u16;
+
+                        let result = x + y;
+                        if result > 255 {
+                            self.vf = 1;
+                        } else {
+                            self.vf = 0;
+                        }
+                        self.set_reg(regx, result as u8);
+                    },
+                    0x5 => {
+                        // 8XY5 - SUB VX, VY
+                        //
+                        // If VX > VY, then VF is set to 1, otherwise 0. Then
+                        // VY is subtracted from VX, and the results stored in
+                        // VX.
+
+                        let x = self.get_reg(regx) as u16;
+                        let y = self.get_reg(regy) as u16;
+
+                        if x > y {
+                            self.vf = 1;
+                        } else {
+                            self.vf = 0;
+                        }
+                        let result = x - y;
+                        self.set_reg(regx, result as u8);
+                    },
+                    0x6 => {
+                        // 8XY6 - SHR VX {, VY}
+                        //
+                        // If the least-significant bit of VX is 1, then VF is
+                        // set to 1, otherwise 0. Then VX is divided by 2.
+
+                        let x = self.get_reg(regx);
+                        let lsb = x & 0x1;
+
+                        self.vf = lsb;
+                        self.set_reg(regx, x / 2);
+                    },
+                    0x7 => {
+                        // 8XY7 - SUBN VX, VY
+                        //
+                        // If VY > VX, then VF is set to 1, otherwise 0. Then
+                        // VX is subtracted from VY, and the results stored in
+                        // VX.
+
+                        let x = self.get_reg(regx);
+                        let y = self.get_reg(regy);
+
+                        if y > x {
+                            self.vf = 1;
+                        } else {
+                            self.vf = 0;
+                        }
+                        let result = y - x;
+                        self.set_reg(regx, result);
+                    },
+                    0xe => {
+                        // 8XYE - SHL VX {, VY}
+                        //
+                        // If the most-significant bit of VX is 1, then VF is
+                        // set to 1, otherwise to 0. Then VX is multiplied by 2.
+
+                        let x = self.get_reg(regx);
+                        let msb = (x & 0x80) >> 7;
+
+                        self.vf = msb;
+                        self.set_reg(regx, x * 2)
+                    },
+                    _ => {
+                        println!("cpu: {:#?}", self);
+                        panic!("Found unknown identifier at instruction: {:#x}, addr: {:#x}", instr, self.pc);
+                    },
+                }
+            }
             0xa => {
                 // ANNN - LD I, NNN
                 //
