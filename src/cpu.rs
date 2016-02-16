@@ -1,3 +1,4 @@
+use std::num::Wrapping;
 use std::thread::sleep;
 use std::time::Duration;
 
@@ -214,7 +215,7 @@ impl Cpu {
 
                 let regx = ((instr << 4) >> 12) as u8;
                 let byte = ((instr << 8) >> 8) as u8;
-                let result = self.get_reg(regx) + byte;
+                let result = self.get_reg(regx).wrapping_add(byte);
                 self.set_reg(regx, result);
             },
             0x8 => {
@@ -269,7 +270,7 @@ impl Cpu {
                         let x = self.get_reg(regx) as u16;
                         let y = self.get_reg(regy) as u16;
 
-                        let result = x + y;
+                        let result = x.wrapping_add(y);
                         if result > 255 {
                             self.vf = 1;
                         } else {
@@ -292,7 +293,7 @@ impl Cpu {
                         } else {
                             self.vf = 0;
                         }
-                        let result = x - y;
+                        let result = x.wrapping_sub(y);
                         self.set_reg(regx, result as u8);
                     },
                     0x6 => {
@@ -305,7 +306,7 @@ impl Cpu {
                         let lsb = x & 0x1;
 
                         self.vf = lsb;
-                        self.set_reg(regx, x / 2);
+                        self.set_reg(regx, x.wrapping_div(2));
                     },
                     0x7 => {
                         // 8XY7 - SUBN VX, VY
@@ -322,7 +323,7 @@ impl Cpu {
                         } else {
                             self.vf = 0;
                         }
-                        let result = y - x;
+                        let result = y.wrapping_sub(x);
                         self.set_reg(regx, result);
                     },
                     0xe => {
@@ -335,7 +336,7 @@ impl Cpu {
                         let msb = (x & 0x80) >> 7;
 
                         self.vf = msb;
-                        self.set_reg(regx, x * 2)
+                        self.set_reg(regx, x.wrapping_mul(2));
                     },
                     _ => {
                         println!("cpu: {:#?}", self);
