@@ -7,7 +7,11 @@ use super::interconnect::Interconnect;
 use super::interconnect::END_RESERVED;
 
 const INSTRUCTION_SIZE: u16 = 2;
+
+// Round about 60Hz delay for timers.
 const TIMER_DELAY: u64 = 16;
+
+// Around 500Hz clock speed.
 const EXECUTION_DELAY: u64 = 2;
 
 #[derive(Debug)]
