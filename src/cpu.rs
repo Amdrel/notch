@@ -183,6 +183,20 @@ impl Cpu {
                 if x == byte {
                     self.pc += INSTRUCTION_SIZE;
                 }
+            },
+            0x4 => {
+                // 4XNN - SNE VX, NN
+                //
+                // The interpreter compares register VX to NN, and if they are
+                // not equal, increments the program counter by 2.
+
+                let regx = ((instr << 4) >> 12) as u8;
+                let byte = ((instr << 8) >> 8) as u8;
+                let x = self.get_reg(regx);
+
+                if x != byte {
+                    self.pc += INSTRUCTION_SIZE;
+                }
             }
             0x6 => {
                 // 6XNN - LD VX, NN
