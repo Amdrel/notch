@@ -8,6 +8,7 @@ use super::interconnect::END_RESERVED;
 
 const INSTRUCTION_SIZE: u16 = 2;
 const TIMER_DELAY: u64 = 16;
+const EXECUTION_DELAY: u64 = 2;
 
 #[derive(Debug)]
 pub struct Cpu {
@@ -570,7 +571,6 @@ impl Cpu {
         let st_enabled = self.st > 0;
 
         if dt_enabled || st_enabled {
-            println!("sleep: {:?}", self.dt);
             sleep(Duration::from_millis(TIMER_DELAY));
 
             if dt_enabled {
@@ -579,6 +579,8 @@ impl Cpu {
             if st_enabled {
                 self.st -= 1;
             }
+        } else {
+            sleep(Duration::from_millis(EXECUTION_DELAY));
         }
     }
 
