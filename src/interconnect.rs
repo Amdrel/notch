@@ -39,7 +39,7 @@ pub struct Interconnect {
     event_pump: sdl2::EventPump,
 
     // The current keyboard input state.
-    pub input_state: [bool; 0xF],
+    pub input_state: [bool; 16],
 
     // Used for input waiting.
     pub input_dirty: bool,
@@ -92,7 +92,7 @@ impl Interconnect {
             video_subsystem: video_subsystem,
             renderer: renderer,
             event_pump: event_pump,
-            input_state: [false; 0xF],
+            input_state: [false; 16],
             input_dirty: false,
             last_input: 0,
             halt: false,
@@ -175,11 +175,13 @@ impl Interconnect {
 
             // Return the key that was pressed to make the input state dirty.
             if self.input_dirty {
-                self.last_input;
+                break;
             }
 
             sleep(Duration::from_millis(INPUT_WAIT_DELAY));
         }
+
+        self.last_input
     }
 
     /// Reads a 16 bit word from ram. This function is used mainly to read and
