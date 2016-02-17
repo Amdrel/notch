@@ -1,4 +1,6 @@
 use std::fmt;
+use std::thread::sleep;
+use std::time::Duration;
 
 use super::byteorder::{BigEndian, ByteOrder};
 use super::sdl2;
@@ -22,6 +24,9 @@ const DISPLAY_WIDTH: usize = 64;
 const DISPLAY_HEIGHT: usize = 32;
 const DISPLAY_SIZE: usize = DISPLAY_WIDTH * DISPLAY_HEIGHT;
 
+// Wait for the duration it takes for an instruction to execute.
+const INPUT_WAIT_DELAY: u64 = 2;
+
 // Memory map constraints.
 pub const START_RESERVED: usize = 0x000;
 pub const END_RESERVED: usize = 0x200;
@@ -35,6 +40,12 @@ pub struct Interconnect {
 
     // The current keyboard input state.
     pub input_state: [bool; 0xF],
+
+    // Used for input waiting.
+    pub input_dirty: bool,
+
+    // Last key pressed.
+    pub last_input: u8,
 
     // The CPU reads this value before executing instructions, and when set to
     // true the CPU will stop executing.
@@ -82,6 +93,8 @@ impl Interconnect {
             renderer: renderer,
             event_pump: event_pump,
             input_state: [false; 0xF],
+            input_dirty: false,
+            last_input: 0,
             halt: false,
             ram: ram,
             display: vec![0; DISPLAY_SIZE],
@@ -90,14 +103,125 @@ impl Interconnect {
         interconnect
     }
 
+    /// Get input events from SDL and set the input state.
     pub fn handle_input(&mut self) {
         for event in self.event_pump.poll_iter() {
             match event {
                 Event::Quit {..} | Event::KeyDown { keycode: Some(Keycode::Escape), .. } => {
+                    // Detect close button or escape button events.
+                    // The interpreter is then signaled to halt and stop
+                    // executing code.
                     self.halt = true;
+                },
+                Event::KeyDown { keycode: Some(Keycode::Num0), .. } => {
+                    self.input_state[0x0] = true;
+                },
+                Event::KeyUp { keycode: Some(Keycode::Num0), .. } => {
+                    self.input_state[0x0] = false;
+                },
+                Event::KeyDown { keycode: Some(Keycode::Num1), .. } => {
+                    self.input_state[0x1] = true;
+                },
+                Event::KeyUp { keycode: Some(Keycode::Num1), .. } => {
+                    self.input_state[0x1] = false;
+                },
+                Event::KeyDown { keycode: Some(Keycode::Num2), .. } => {
+                    self.input_state[0x2] = true;
+                },
+                Event::KeyUp { keycode: Some(Keycode::Num2), .. } => {
+                    self.input_state[0x2] = false;
+                },
+                Event::KeyDown { keycode: Some(Keycode::Num3), .. } => {
+                    self.input_state[0x3] = true;
+                },
+                Event::KeyUp { keycode: Some(Keycode::Num3), .. } => {
+                    self.input_state[0x3] = false;
+                },
+                Event::KeyDown { keycode: Some(Keycode::Num4), .. } => {
+                    self.input_state[0x4] = true;
+                },
+                Event::KeyUp { keycode: Some(Keycode::Num4), .. } => {
+                    self.input_state[0x4] = false;
+                },
+                Event::KeyDown { keycode: Some(Keycode::Num5), .. } => {
+                    self.input_state[0x5] = true;
+                },
+                Event::KeyUp { keycode: Some(Keycode::Num5), .. } => {
+                    self.input_state[0x5] = false;
+                },
+                Event::KeyDown { keycode: Some(Keycode::Num6), .. } => {
+                    self.input_state[0x6] = true;
+                },
+                Event::KeyUp { keycode: Some(Keycode::Num6), .. } => {
+                    self.input_state[0x6] = false;
+                },
+                Event::KeyDown { keycode: Some(Keycode::Num7), .. } => {
+                    self.input_state[0x7] = true;
+                },
+                Event::KeyUp { keycode: Some(Keycode::Num7), .. } => {
+                    self.input_state[0x7] = false;
+                },
+                Event::KeyDown { keycode: Some(Keycode::Num8), .. } => {
+                    self.input_state[0x8] = true;
+                },
+                Event::KeyUp { keycode: Some(Keycode::Num8), .. } => {
+                    self.input_state[0x8] = false;
+                },
+                Event::KeyDown { keycode: Some(Keycode::Num9), .. } => {
+                    self.input_state[0x9] = true;
+                },
+                Event::KeyUp { keycode: Some(Keycode::Num9), .. } => {
+                    self.input_state[0x9] = false;
+                },
+                Event::KeyDown { keycode: Some(Keycode::A), .. } => {
+                    self.input_state[0xa] = true;
+                },
+                Event::KeyUp { keycode: Some(Keycode::A), .. } => {
+                    self.input_state[0xa] = false;
+                },
+                Event::KeyDown { keycode: Some(Keycode::B), .. } => {
+                    self.input_state[0xb] = true;
+                },
+                Event::KeyUp { keycode: Some(Keycode::B), .. } => {
+                    self.input_state[0xb] = false;
+                },
+                Event::KeyDown { keycode: Some(Keycode::C), .. } => {
+                    self.input_state[0xc] = true;
+                },
+                Event::KeyUp { keycode: Some(Keycode::C), .. } => {
+                    self.input_state[0xc] = false;
+                },
+                Event::KeyDown { keycode: Some(Keycode::D), .. } => {
+                    self.input_state[0xd] = true;
+                },
+                Event::KeyUp { keycode: Some(Keycode::D), .. } => {
+                    self.input_state[0xd] = false;
+                },
+                Event::KeyDown { keycode: Some(Keycode::E), .. } => {
+                    self.input_state[0xe] = true;
+                },
+                Event::KeyUp { keycode: Some(Keycode::E), .. } => {
+                    self.input_state[0xe] = false;
+                },
+                Event::KeyDown { keycode: Some(Keycode::F), .. } => {
+                    self.input_state[0xf] = true;
+                },
+                Event::KeyUp { keycode: Some(Keycode::F), .. } => {
+                    self.input_state[0xf] = false;
                 },
                 _ => {}
             }
+        }
+    }
+
+    /// Wait until an input event comes through and return the key for that
+    /// input event.
+    pub fn wait_input(&mut self) -> u8 {
+        self.input_dirty = false;
+
+        loop {
+            self.handle_input();
+            sleep(Duration::from_millis(INPUT_WAIT_DELAY));
         }
     }
 
@@ -149,17 +273,19 @@ impl Interconnect {
                     index = offset + pos;
                 }
 
-                // Save the previous state of the pixel before setting it
-                // for collision detection.
-                let prev = self.display[index];
+                if index >= 0 && index < DISPLAY_SIZE {
+                    // Save the previous state of the pixel before setting it
+                    // for collision detection.
+                    let prev = self.display[index];
 
-                // Draw the bit to the display.
-                self.display[index] = value ^ prev;
+                    // Draw the bit to the display.
+                    self.display[index] = value ^ prev;
 
-                // Check the previous state of the pixel and check if it
-                // was erased, if so then there was a sprite collision.
-                if prev == 1 && self.display[index] == 0 {
-                    collision = 1;
+                    // Check the previous state of the pixel and check if it
+                    // was erased, if so then there was a sprite collision.
+                    if prev == 1 && self.display[index] == 0 {
+                        collision = 1;
+                    }
                 }
             }
         }

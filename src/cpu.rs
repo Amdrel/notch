@@ -122,11 +122,11 @@ impl Cpu {
 
     #[inline(always)]
     fn execute_instruction(&mut self, instr: u16) -> bool {
+        self.handle_timers();
+
         let opcode = (instr >> 12) as u8;
         let mut ret: bool = false;
         let mut skip: bool = false;
-
-        //println!("{:x}", instr);
 
         match opcode {
             0x0 => {
@@ -494,12 +494,14 @@ impl Cpu {
                         self.set_reg(regx, dt);
                     },
                     0x0a => {
-                        // Fx0A - LD VX, K
+                        // FX0A - LD VX, N
                         //
                         // All execution stops until a key is pressed, then the
-                        // value of that key is stored in Vx.
+                        // value of that key is stored in VX.
 
-                        panic!("Unhandled");
+                        println!("Waiting for input...");
+                        let key = self.interconnect.wait_input();
+                        self.set_reg(regx, key);
                     },
                     0x15 => {
                         // FX15 - LD DT, VX
@@ -520,10 +522,11 @@ impl Cpu {
                     0x1e => {
                         // FX1E - ADD I, VX
                         //
-                        // The values of I and Vx are added, and the results
+                        // The values of I and VX are added, and the results
                         // are stored in I.
 
-                        panic!("Unhandled");
+                        let x = self.get_reg(regx);
+                        self.i = self.i.wrapping_add(x as u16);
                     },
                     0x29 => {
                         // FX29 - LD F, VX
@@ -572,7 +575,13 @@ impl Cpu {
                         // The interpreter copies the values of registers V0
                         // through VX into memory, starting at the address in I.
 
-                        panic!("Unhandled");
+                        let i = self.i as usize;
+                        let end_reg = (regx + 1) as usize;
+
+                        for register in 0x0..end_reg {
+                            let val = self.get_reg(register as u8);
+                            self.interconnect.ram[i + register] = val;
+                        }
                     },
                     0x65 => {
                         // FX65 - LD VX, [I]
@@ -604,8 +613,6 @@ impl Cpu {
         if !ret && !skip {
             self.pc += INSTRUCTION_SIZE;
         }
-
-        self.handle_timers();
 
         // By default the execution loop in not broken. True will be returned
         // only by a successful RET instruction is executed.
