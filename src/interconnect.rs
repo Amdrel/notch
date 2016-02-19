@@ -224,7 +224,7 @@ impl Interconnect {
                 // Draw a pixel in the sprite onto the display. If the pixel x
                 // position is greater than the width of the display, the sprite
                 // wraps around the display.
-                if pos > DISPLAY_WIDTH {
+                if pos >= DISPLAY_WIDTH {
                     // Wrap around to the left side to draw.
                     index = offset + pos - DISPLAY_WIDTH;
                 } else {
