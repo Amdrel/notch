@@ -3,7 +3,6 @@ use std::thread::sleep;
 use std::time::Duration;
 
 use super::byteorder::{BigEndian, ByteOrder};
-use super::rand;
 use super::sdl2;
 use super::sdl2::pixels::Color;
 use super::sdl2::rect::Point;
@@ -29,15 +28,16 @@ const DISPLAY_SIZE: usize = DISPLAY_WIDTH * DISPLAY_HEIGHT;
 // Wait for the duration it takes for an instruction to execute.
 const INPUT_WAIT_DELAY: u64 = 2;
 
-// Memory map constraints.
+// Memory map constraints. Allow dead_code is added so these constants are here
+// for the sake of completion.
+#[allow(dead_code)]
 pub const START_RESERVED: usize = 0x000;
+#[allow(dead_code)]
 pub const END_RESERVED: usize = 0x200;
+#[allow(dead_code)]
 pub const END_PROGRAM_SPACE: usize = 0xFFF;
 
 pub struct Interconnect {
-    sdl_context: sdl2::Sdl,
-    video_subsystem: sdl2::VideoSubsystem,
-    audio_subsystem: sdl2::AudioSubsystem,
     audio_device: sdl2::audio::AudioDevice<BeepCallback>,
     renderer: sdl2::render::Renderer<'static>,
     event_pump: sdl2::EventPump,
@@ -92,7 +92,7 @@ impl Interconnect {
             samples: None, // Default sample size.
         };
 
-        let mut device = audio_subsystem.open_playback(None, &desired_spec, |spec| {
+        let device = audio_subsystem.open_playback(None, &desired_spec, |spec| {
             BeepCallback {
                 phase_inc: 440.0 / spec.freq as f32,
                 phase: 0.0,
@@ -110,12 +110,9 @@ impl Interconnect {
         renderer.clear();
         renderer.present();
 
-        let mut event_pump = sdl_context.event_pump().unwrap();
+        let event_pump = sdl_context.event_pump().unwrap();
 
         let mut interconnect = Interconnect {
-            sdl_context: sdl_context,
-            video_subsystem: video_subsystem,
-            audio_subsystem: audio_subsystem,
             audio_device: device,
             renderer: renderer,
             event_pump: event_pump,
@@ -270,7 +267,7 @@ impl Interconnect {
                     index = offset + pos;
                 }
 
-                if index >= 0 && index < DISPLAY_SIZE {
+                if index < DISPLAY_SIZE {
                     // Save the previous state of the pixel before setting it
                     // for collision detection.
                     let prev = self.display[index];
