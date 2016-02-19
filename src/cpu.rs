@@ -624,6 +624,12 @@ impl Cpu {
         let dt_enabled = self.dt > 0;
         let st_enabled = self.st > 0;
 
+        if st_enabled {
+            self.interconnect.beeping = true;
+        } else {
+            self.interconnect.beeping = false;
+        }
+
         if dt_enabled || st_enabled {
             sleep(Duration::from_millis(TIMER_DELAY));
 

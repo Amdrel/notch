@@ -3,11 +3,13 @@ use std::thread::sleep;
 use std::time::Duration;
 
 use super::byteorder::{BigEndian, ByteOrder};
+use super::rand;
 use super::sdl2;
 use super::sdl2::pixels::Color;
 use super::sdl2::rect::Point;
 use super::sdl2::event::Event;
 use super::sdl2::keyboard::Keycode;
+use super::sdl2::audio::{AudioDevice, AudioCallback, AudioSpecDesired};
 
 // Size of the memory map of a CHIP-8 interpreter is 4kb.
 const RAM_SIZE: usize = 4096;
@@ -35,6 +37,8 @@ pub const END_PROGRAM_SPACE: usize = 0xFFF;
 pub struct Interconnect {
     sdl_context: sdl2::Sdl,
     video_subsystem: sdl2::VideoSubsystem,
+    audio_subsystem: sdl2::AudioSubsystem,
+    audio_device: sdl2::audio::AudioDevice<BeepCallback>,
     renderer: sdl2::render::Renderer<'static>,
     event_pump: sdl2::EventPump,
 
@@ -46,6 +50,9 @@ pub struct Interconnect {
 
     // Last key pressed.
     pub last_input: u8,
+
+    // When true beeping audio will play.
+    pub beeping: bool,
 
     // The CPU reads this value before executing instructions, and when set to
     // true the CPU will stop executing.
@@ -70,10 +77,28 @@ impl Interconnect {
         // Setup SDL for graphics and audio.
         let sdl_context = sdl2::init().unwrap();
         let video_subsystem = sdl_context.video().unwrap();
+        let audio_subsystem = sdl_context.audio().unwrap();
+
+        // Create a window 10x the scale of CHIP-8's display.
         let window = video_subsystem.window("Notch", 640, 320)
             .position_centered()
             .build()
             .unwrap();
+
+        // Setup beep sound parameters.
+        let desired_spec = AudioSpecDesired {
+            freq: Some(44100),    // I think this is healthy?
+            channels: Some(1),   // Mono.
+            samples: None, // Default sample size.
+        };
+
+        let mut device = audio_subsystem.open_playback(None, &desired_spec, |spec| {
+            BeepCallback {
+                phase_inc: 440.0 / spec.freq as f32,
+                phase: 0.0,
+                volume: 0.25
+            }
+        }).unwrap();
 
         // Create a renderer that is scaled up a bit. The CHIP-8 display is
         // very small for today's standards.
@@ -90,11 +115,14 @@ impl Interconnect {
         let mut interconnect = Interconnect {
             sdl_context: sdl_context,
             video_subsystem: video_subsystem,
+            audio_subsystem: audio_subsystem,
+            audio_device: device,
             renderer: renderer,
             event_pump: event_pump,
             input_state: [false; 16],
             input_dirty: false,
             last_input: 0,
+            beeping: false,
             halt: false,
             ram: ram,
             display: vec![0; DISPLAY_SIZE],
@@ -160,6 +188,8 @@ impl Interconnect {
                 _ => {}
             }
         }
+
+        self.handle_sound();
     }
 
     /// Wait until an input event comes through and return the key for that
@@ -182,6 +212,14 @@ impl Interconnect {
         }
 
         self.last_input
+    }
+
+    pub fn handle_sound(&self) {
+        if self.beeping {
+            self.audio_device.resume();
+        } else {
+            self.audio_device.pause();
+        }
     }
 
     /// Reads a 16 bit word from ram. This function is used mainly to read and
@@ -321,5 +359,26 @@ impl Interconnect {
 impl fmt::Debug for Interconnect {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "interconnect")
+    }
+}
+
+struct BeepCallback {
+    phase_inc: f32,
+    phase: f32,
+    volume: f32
+}
+
+impl AudioCallback for BeepCallback {
+    type Channel = f32;
+
+    fn callback(&mut self, out: &mut [f32]) {
+        // Generate a square wave.
+        for x in out.iter_mut() {
+            *x = match self.phase {
+                0.0...0.5 => self.volume,
+                _ => -self.volume
+            };
+            self.phase = (self.phase + self.phase_inc) % 1.0;
+        }
     }
 }
