@@ -254,7 +254,7 @@ impl Interconnect {
             for j in 0..values.len() {
                 let value = values[j];
                 let pos: usize = x + j;
-                let index: usize;
+                let mut index: usize;
 
                 // Draw a pixel in the sprite onto the display. If the pixel x
                 // position is greater than the width of the display, the sprite
@@ -265,6 +265,10 @@ impl Interconnect {
                 } else {
                     // Draw at the current offset.
                     index = offset + pos;
+                }
+
+                if index >= DISPLAY_SIZE {
+                    index -= DISPLAY_SIZE;
                 }
 
                 if index < DISPLAY_SIZE {
