@@ -1,18 +1,14 @@
 use std::fmt;
 use std::thread::sleep;
 use std::time::Duration;
-use super::memory::Memory;
+
 use super::sdl2::audio::{AudioCallback, AudioSpecDesired};
 use super::sdl2::event::Event;
 use super::sdl2::keyboard::Keycode;
-use super::sdl2::pixels::Color;
-use super::sdl2::rect::Point;
 use super::sdl2;
 
-// Display size parameters.
-const DISPLAY_WIDTH: usize = 64;
-const DISPLAY_HEIGHT: usize = 32;
-const DISPLAY_SIZE: usize = DISPLAY_WIDTH * DISPLAY_HEIGHT;
+use super::graphics::Graphics;
+use super::memory::Memory;
 
 // Wait for the duration it takes for an instruction to execute.
 const INPUT_WAIT_DELAY: u64 = 2;
@@ -20,11 +16,13 @@ const INPUT_WAIT_DELAY: u64 = 2;
 pub struct Interconnect {
     // SDL objects for communication with the window system.
     audio_device: sdl2::audio::AudioDevice<BeepCallback>,
-    renderer: sdl2::render::Renderer<'static>,
     event_pump: sdl2::EventPump,
 
     // Memory handles allocation along with reading and writing memory.
     pub memory: Memory,
+
+    // Graphics manages drawing with SDL.
+    pub graphics: Graphics,
 
     // The current keyboard input state.
     pub input_state: [bool; 16],
@@ -41,23 +39,13 @@ pub struct Interconnect {
     // The CPU reads this value before executing instructions, and when set to
     // true the CPU will stop executing.
     pub halt: bool,
-
-    // 64x32 buffer for the application to write to.
-    pub display: Vec<u8>,
 }
 
 impl Interconnect {
     pub fn new(rom: Vec<u8>) -> Interconnect {
         // Setup SDL for graphics and audio.
         let sdl_context = sdl2::init().unwrap();
-        let video_subsystem = sdl_context.video().unwrap();
         let audio_subsystem = sdl_context.audio().unwrap();
-
-        // Create a window 10x the scale of CHIP-8's display.
-        let window = video_subsystem.window("Notch", 640, 320)
-            .position_centered()
-            .build()
-            .unwrap();
 
         // Setup beep sound parameters.
         let desired_spec = AudioSpecDesired {
@@ -73,37 +61,27 @@ impl Interconnect {
             }
         }).unwrap();
 
-        // Create a renderer that is scaled up a bit. The CHIP-8 display is
-        // very small for today's standards.
-        let mut renderer = window.renderer().build().unwrap();
-        renderer.set_scale(10.0, 10.0);
-
-        // Clear the screen to black.
-        renderer.set_draw_color(Color::RGB(0, 0, 0));
-        renderer.clear();
-        renderer.present();
-
         // SDL object used to collect input events.
         let event_pump = sdl_context.event_pump().unwrap();
 
         // Initialize the memory for the virtual machine and load the rom.
-        // Ownership of the rom data is transfered as it's no longer required
-        // past this point.
         let memory = Memory::new(rom);
+
+        // Graphics requires an SDL context to create a window with.
+        let graphics = Graphics::new(&sdl_context);
 
         // Create and return the finished virtual machine struct now that
         // everything is initialized and in a good state.
         let interconnect = Interconnect {
             audio_device: device,
-            renderer: renderer,
             event_pump: event_pump,
             memory: memory,
+            graphics: graphics,
             input_state: [false; 16],
             input_dirty: false,
             last_input: 0,
             beeping: false,
             halt: false,
-            display: vec![0; DISPLAY_SIZE],
         };
         interconnect
     }
@@ -197,96 +175,6 @@ impl Interconnect {
         } else {
             self.audio_device.pause();
         }
-    }
-
-    /// Draws a sprite to the display.
-    #[inline(always)]
-    pub fn draw(&mut self, x: usize, y: usize, sprite: Vec<u8>) -> u8 {
-        let line = y * DISPLAY_WIDTH;
-        let mut collision: u8 = 0;
-        let mut values = vec![0 as u8; 8];
-
-        for i in 0..sprite.len() {
-            // Each byte in a sprite draws on one line.
-            let offset = line + DISPLAY_WIDTH * i;
-
-            // Organize the bits from the current sprite byte into a slice.
-            for j in 0..values.len() {
-                let bit = (sprite[i] >> j) & 0x01;
-                values[8 - 1 - j] = bit;
-            }
-
-            // Loop through the bits in the current byte and set the display
-            // values based on them.
-            for j in 0..values.len() {
-                let value = values[j];
-                let pos: usize = x + j;
-                let mut index: usize;
-
-                // Draw a pixel in the sprite onto the display. If the pixel x
-                // position is greater than the width of the display, the sprite
-                // wraps around the display.
-                if pos >= DISPLAY_WIDTH {
-                    // Wrap around to the left side to draw.
-                    index = offset + pos - DISPLAY_WIDTH;
-                } else {
-                    // Draw at the current offset.
-                    index = offset + pos;
-                }
-
-                if index >= DISPLAY_SIZE {
-                    index -= DISPLAY_SIZE;
-                }
-
-                if index < DISPLAY_SIZE {
-                    // Save the previous state of the pixel before setting it
-                    // for collision detection.
-                    let prev = self.display[index];
-
-                    // Draw the bit to the display.
-                    self.display[index] = value ^ prev;
-
-                    // Check the previous state of the pixel and check if it
-                    // was erased, if so then there was a sprite collision.
-                    if prev == 1 && self.display[index] == 0 {
-                        collision = 1;
-                    }
-                }
-            }
-        }
-
-        // Draw to the SDL surface. Humans have these things called "eyes" and
-        // they get upset when they cannot see things.
-        self.draw_display();
-
-        collision
-    }
-
-    /// Clears all pixels on the display by setting them all to an off state.
-    pub fn clear_display(&mut self) {
-        for i in 0..DISPLAY_SIZE {
-            self.display[i] = 0;
-        }
-        self.draw_display();
-    }
-
-    /// Draw the display to the SDL surface. All pixels are white.
-    fn draw_display(&mut self) {
-        // Clear the screen to black.
-        self.renderer.set_draw_color(Color::RGB(0, 0, 0));
-        self.renderer.clear();
-
-        // Draw the display to the SDL surface.
-        self.renderer.set_draw_color(Color::RGB(255, 255, 255));
-        for i in 0..DISPLAY_HEIGHT {
-            let offset = DISPLAY_WIDTH * i;
-            for j in 0..DISPLAY_WIDTH {
-                if self.display[offset + j] == 1 {
-                    self.renderer.draw_point(Point::new(j as i32, i as i32));
-                }
-            }
-        }
-        self.renderer.present();
     }
 }
 

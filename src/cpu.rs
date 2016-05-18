@@ -1,7 +1,9 @@
 use std::thread::sleep;
 use std::time::Duration;
-use super::memory::END_RESERVED;
+
 use super::rand::random;
+
+use super::memory::END_RESERVED;
 use super::interconnect::Interconnect;
 
 // Instructions are 2 bytes long and stored as BigEndian.
@@ -15,6 +17,7 @@ const EXECUTION_DELAY: u64 = 2;
 
 #[derive(Debug)]
 pub struct Cpu {
+    // Interconnect has access to the memory and other external resources.
     interconnect: Interconnect,
 
     // Program counter.
@@ -135,7 +138,7 @@ impl Cpu {
                         // 00E0 - CLS
                         // Clears the screen.
 
-                        self.interconnect.clear_display();
+                        self.interconnect.graphics.clear_display();
                     },
                     0xEE => {
                         // 00EE - RET
@@ -443,7 +446,7 @@ impl Cpu {
                 let y = self.get_reg(regy);
 
                 // Draw the sprite and store collision detection results in vf.
-                self.vf = self.interconnect.draw(x as usize, y as usize, sprite);
+                self.vf = self.interconnect.graphics.draw(x as usize, y as usize, sprite);
             },
             0xe => {
                 let regx = ((instr << 4) >> 12) as u8;
