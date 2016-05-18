@@ -1,9 +1,8 @@
 use std::thread::sleep;
 use std::time::Duration;
-
+use super::memory::END_RESERVED;
 use super::rand::random;
 use super::vm::VirtualMachine;
-use super::vm::END_RESERVED;
 
 const INSTRUCTION_SIZE: u16 = 2;
 
@@ -15,7 +14,6 @@ const EXECUTION_DELAY: u64 = 2;
 
 #[derive(Debug)]
 pub struct Cpu {
-    // VirtualMachine is used to control system resources like rom and memory.
     virtual_machine: VirtualMachine,
 
     // Program counter.
@@ -107,7 +105,7 @@ impl Cpu {
 
             // Read a word from ram where the program counter currently points
             // to execute.
-            let word = self.virtual_machine.read_word(self.pc);
+            let word = self.virtual_machine.memory.read_word(self.pc);
 
             // Execute until the subroutine ends if we are in one.
             if self.execute_instruction(word) {
@@ -436,7 +434,7 @@ impl Cpu {
                 // register I into our sprite.
                 let mut sprite = vec![0 as u8; nibble];
                 for i in 0..nibble {
-                    sprite[i] = self.virtual_machine.ram[self.i as usize + i];
+                    sprite[i] = self.virtual_machine.memory.read(self.i as usize + i);
                 }
 
                 // Get screen coordinates from the requested registers.
@@ -535,7 +533,7 @@ impl Cpu {
                         // represented by a 4x5 font.
 
                         let x = self.get_reg(regx);
-                        self.i = self.virtual_machine.get_font(x);
+                        self.i = self.virtual_machine.memory.get_font(x);
                     },
                     0x33 => {
                         // FX33 - LD B, VX
@@ -564,9 +562,9 @@ impl Cpu {
 
                         // Set I, I+1, and I+3 to the values of the digits.
                         let i = self.i as usize;
-                        self.virtual_machine.ram[i] = digits[0];
-                        self.virtual_machine.ram[i + 1] = digits[1];
-                        self.virtual_machine.ram[i + 2] = digits[2];
+                        self.virtual_machine.memory.write(i, digits[0]);
+                        self.virtual_machine.memory.write(i + 1, digits[1]);
+                        self.virtual_machine.memory.write(i + 2, digits[2]);
                     },
                     0x55 => {
                         // FX55 - LD [I], VX
@@ -579,7 +577,7 @@ impl Cpu {
 
                         for register in 0x0..end_reg {
                             let val = self.get_reg(register as u8);
-                            self.virtual_machine.ram[i + register] = val;
+                            self.virtual_machine.memory.write(i + register, val);
                         }
                     },
                     0x65 => {
@@ -592,7 +590,7 @@ impl Cpu {
                         let end_reg = (regx + 1) as usize;
 
                         for register in 0x0..end_reg {
-                            let mem = self.virtual_machine.ram[i + register];
+                            let mem = self.virtual_machine.memory.read(i + register);
                             self.set_reg(register as u8, mem);
                         }
                     },

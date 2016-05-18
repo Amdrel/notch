@@ -1,21 +1,15 @@
 use std::fmt;
 use std::thread::sleep;
 use std::time::Duration;
-
 use super::byteorder::{BigEndian, ByteOrder};
-use super::sdl2;
-use super::sdl2::pixels::Color;
-use super::sdl2::rect::Point;
+use super::cpu::Cpu;
+use super::memory::Memory;
+use super::sdl2::audio::{AudioDevice, AudioCallback, AudioSpecDesired};
 use super::sdl2::event::Event;
 use super::sdl2::keyboard::Keycode;
-use super::sdl2::audio::{AudioDevice, AudioCallback, AudioSpecDesired};
-
-// Where fonts are stored in interpreter memory.
-const FONT_OFFSET: usize = 0;
-
-// Font size constants.
-const CHARACTER_SIZE: usize = 5;
-const CHARACTER_COUNT: usize = 16;
+use super::sdl2::pixels::Color;
+use super::sdl2::rect::Point;
+use super::sdl2;
 
 // Display size parameters.
 const DISPLAY_WIDTH: usize = 64;
@@ -25,17 +19,14 @@ const DISPLAY_SIZE: usize = DISPLAY_WIDTH * DISPLAY_HEIGHT;
 // Wait for the duration it takes for an instruction to execute.
 const INPUT_WAIT_DELAY: u64 = 2;
 
-// Memory map constraints. Allow dead_code is added so these constants are here
-// for the sake of completion.
-pub const START_RESERVED: usize = 0x000;
-pub const END_RESERVED: usize = 0x200;
-pub const END_PROGRAM_SPACE: usize = 0xFFF;
-
 pub struct VirtualMachine {
     // SDL objects for communication with the window system.
     audio_device: sdl2::audio::AudioDevice<BeepCallback>,
     renderer: sdl2::render::Renderer<'static>,
     event_pump: sdl2::EventPump,
+
+    // Memory handles allocation along with reading and writing memory.
+    pub memory: Memory,
 
     // The current keyboard input state.
     pub input_state: [bool; 16],
@@ -72,11 +63,10 @@ impl VirtualMachine {
 
         // Setup beep sound parameters.
         let desired_spec = AudioSpecDesired {
-            freq: Some(44100),    // I think this is healthy?
-            channels: Some(1),   // Mono.
-            samples: None, // Default sample size.
+            freq: Some(44100), // I think this is healthy?
+            channels: Some(1), // Mono.
+            samples: None,     // Default sample size.
         };
-
         let device = audio_subsystem.open_playback(None, &desired_spec, |spec| {
             BeepCallback {
                 phase_inc: 440.0 / spec.freq as f32,
@@ -95,21 +85,28 @@ impl VirtualMachine {
         renderer.clear();
         renderer.present();
 
+        // SDL object used to collect input events.
         let event_pump = sdl_context.event_pump().unwrap();
 
+        // Initialize the memory for the virtual machine and load the rom.
+        // Ownership of the rom data is transfered as it's no longer required
+        // past this point.
+        let memory = Memory::new(rom);
+
+        // Create and return the finished virtual machine struct now that
+        // everything is initialized and in a good state.
         let mut virtual_machine = VirtualMachine {
             audio_device: device,
             renderer: renderer,
             event_pump: event_pump,
+            memory: memory,
             input_state: [false; 16],
             input_dirty: false,
             last_input: 0,
             beeping: false,
             halt: false,
-            ram: ram,
             display: vec![0; DISPLAY_SIZE],
         };
-        virtual_machine.dump_fonts();
         virtual_machine
     }
 
@@ -204,19 +201,6 @@ impl VirtualMachine {
         }
     }
 
-    /// Reads a 16 bit word from ram. This function is used mainly to read and
-    /// execute instructions.
-    #[inline(always)]
-    pub fn read_word(&self, addr: u16) -> u16 {
-        BigEndian::read_u16(&self.ram[addr as usize..])
-    }
-
-    /// Find the memory address of the requested character.
-    #[inline(always)]
-    pub fn get_font(&self, font: u8) -> u16 {
-        FONT_OFFSET as u16 + font as u16 * CHARACTER_SIZE as u16
-    }
-
     /// Draws a sprite to the display.
     #[inline(always)]
     pub fn draw(&mut self, x: usize, y: usize, sprite: Vec<u8>) -> u8 {
@@ -305,40 +289,6 @@ impl VirtualMachine {
             }
         }
         self.renderer.present();
-    }
-
-    /// Dumps the standard CHIP-8 fonts to ram.
-    fn dump_fonts(&mut self) {
-        // The characters 0-F to be stored in ram as a font for chip 8 programs.
-        // Vectorception for ease of reading.
-        let fonts = vec![
-            vec![0xF0, 0x90, 0x90, 0x90, 0xF0], // 0
-            vec![0x20, 0x60, 0x20, 0x20, 0x70], // 1
-            vec![0xF0, 0x10, 0xf0, 0x80, 0xF0], // 2
-            vec![0xF0, 0x10, 0xF0, 0x10, 0xF0], // 3
-            vec![0x90, 0x90, 0xF0, 0x10, 0x10], // 4
-            vec![0xF0, 0x80, 0xF0, 0x10, 0xF0], // 5
-            vec![0xF0, 0x80, 0xF0, 0x90, 0xF0], // 6
-            vec![0xF0, 0x10, 0x20, 0x40, 0x40], // 7
-            vec![0xF0, 0x90, 0xF0, 0x90, 0xF0], // 8
-            vec![0xF0, 0x90, 0xF0, 0x10, 0xF0], // 9
-            vec![0xF0, 0x90, 0xF0, 0x90, 0x90], // A
-            vec![0xE0, 0x90, 0xE0, 0x90, 0xE0], // B
-            vec![0xF0, 0x80, 0x80, 0x80, 0xF0], // C
-            vec![0xE0, 0x90, 0x90, 0x90, 0xE0], // D
-            vec![0xF0, 0x80, 0xF0, 0x80, 0xF0], // E
-            vec![0xF0, 0x80, 0xF0, 0x80, 0x80], // F
-        ];
-
-        for i in 0..CHARACTER_COUNT {
-            // Find where the current character should be stored in memory.
-            let start: usize = FONT_OFFSET + i * CHARACTER_SIZE;
-
-            // Copy the current character into the calculated spot in memory.
-            for j in 0..CHARACTER_SIZE {
-                self.ram[start + j] = fonts[i][j];
-            }
-        }
     }
 }
 

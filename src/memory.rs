@@ -1,5 +1,19 @@
+use super::byteorder::{BigEndian, ByteOrder};
+
 // Size of the memory map of a CHIP-8 interpreter is 4kB.
-const RAM_SIZE: usize = 4096;
+pub const RAM_SIZE: usize = 4096;
+
+// Memory map constraints for CHIP-8 virtual machines.
+pub const START_RESERVED: usize = 0x000;
+pub const END_RESERVED: usize = 0x200;
+pub const END_PROGRAM_SPACE: usize = 0xFFF;
+
+// Font size constants.
+const CHARACTER_SIZE: usize = 5;
+const CHARACTER_COUNT: usize = 16;
+
+// Where fonts are stored in interpreter memory.
+const FONT_OFFSET: usize = 0;
 
 pub struct Memory {
     // Memory allocated for the running CHIP-8 application.
@@ -11,19 +25,25 @@ impl Memory {
     pub fn new(rom: Vec<u8>) -> Memory {
         // Allocate 4kB of memory as defined in the many specifications.
         let mut ram = vec![0; RAM_SIZE];
+        Memory::dump_rom(&mut ram, &rom);
+        Memory::dump_fonts(&mut ram);
 
-        // Dump the rom containing the executable code of the program into ram
-        // starting at the start of the program space.
-        for i in 0..rom.len() {
-            ram[i + END_RESERVED] = rom[i];
+        Memory {
+            ram: ram,
         }
+    }
+
+    /// Simply returns an 8-bit word at the specified address.
+    #[inline(always)]
+    pub fn read(&self, addr: usize) -> u8 {
+        self.ram[addr]
     }
 
     /// Write an 8-bit byte at a specific address. There is no concern over
     /// endianess since this function operates on single bytes.
     #[inline(always)]
-    pub fn write(&mut self, addr: u16, byte: u8) {
-
+    pub fn write(&mut self, addr: usize, byte: u8) {
+        self.ram[addr] = byte;
     }
 
     /// Reads a 16-bit word from ram. This function is used mainly to read and
@@ -33,10 +53,26 @@ impl Memory {
         BigEndian::read_u16(&self.ram[addr as usize..])
     }
 
+    /// Find the memory address of the requested character.
+    #[inline(always)]
+    pub fn get_font(&self, font: u8) -> u16 {
+        FONT_OFFSET as u16 + font as u16 * CHARACTER_SIZE as u16
+    }
+
+    /// Dumps a passed rom containing executable code into ram starting at
+    /// program space (right after reserved space ends).
+    fn dump_rom(ram: &mut Vec<u8>, rom: &Vec<u8>) {
+        // Dump the rom containing the executable code of the program into ram
+        // starting at the start of the program space.
+        for i in 0..rom.len() {
+            ram[i + END_RESERVED] = rom[i];
+        }
+    }
+
     /// Dumps the standard CHIP-8 fonts to ram. The fonts are stored at the
     /// start of reserved memory and this is fine since the fonts are the only
     /// thing being stored in reserved memory.
-    fn dump_fonts(&mut self) {
+    fn dump_fonts(ram: &mut Vec<u8>) {
         // The characters 0-F to be stored in ram as a font for chip 8 programs.
         // Nested vectors are used for ease of reading.
         //
@@ -67,7 +103,7 @@ impl Memory {
 
             // Copy the current character into the calculated spot in memory.
             for j in 0..CHARACTER_SIZE {
-                self.ram[start + j] = fonts[i][j];
+                ram[start + j] = fonts[i][j];
             }
         }
     }
