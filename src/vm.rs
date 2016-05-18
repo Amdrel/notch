@@ -10,9 +10,6 @@ use super::sdl2::event::Event;
 use super::sdl2::keyboard::Keycode;
 use super::sdl2::audio::{AudioDevice, AudioCallback, AudioSpecDesired};
 
-// Size of the memory map of a CHIP-8 interpreter is 4kb.
-const RAM_SIZE: usize = 4096;
-
 // Where fonts are stored in interpreter memory.
 const FONT_OFFSET: usize = 0;
 
@@ -30,14 +27,12 @@ const INPUT_WAIT_DELAY: u64 = 2;
 
 // Memory map constraints. Allow dead_code is added so these constants are here
 // for the sake of completion.
-#[allow(dead_code)]
 pub const START_RESERVED: usize = 0x000;
-#[allow(dead_code)]
 pub const END_RESERVED: usize = 0x200;
-#[allow(dead_code)]
 pub const END_PROGRAM_SPACE: usize = 0xFFF;
 
-pub struct Interconnect {
+pub struct VirtualMachine {
+    // SDL objects for communication with the window system.
     audio_device: sdl2::audio::AudioDevice<BeepCallback>,
     renderer: sdl2::render::Renderer<'static>,
     event_pump: sdl2::EventPump,
@@ -58,22 +53,12 @@ pub struct Interconnect {
     // true the CPU will stop executing.
     pub halt: bool,
 
-    // RAM used by the application. 4k in size.
-    pub ram: Vec<u8>,
-
     // 64x32 buffer for the application to write to.
     pub display: Vec<u8>,
 }
 
-impl Interconnect {
-    pub fn new(rom: Vec<u8>) -> Interconnect {
-        let mut ram = vec![0; RAM_SIZE];
-
-        // Dump the rom into ram starting at the start of the program space.
-        for i in 0..rom.len() {
-            ram[i + END_RESERVED] = rom[i];
-        }
-
+impl VirtualMachine {
+    pub fn new(rom: Vec<u8>) -> VirtualMachine {
         // Setup SDL for graphics and audio.
         let sdl_context = sdl2::init().unwrap();
         let video_subsystem = sdl_context.video().unwrap();
@@ -112,7 +97,7 @@ impl Interconnect {
 
         let event_pump = sdl_context.event_pump().unwrap();
 
-        let mut interconnect = Interconnect {
+        let mut virtual_machine = VirtualMachine {
             audio_device: device,
             renderer: renderer,
             event_pump: event_pump,
@@ -124,8 +109,8 @@ impl Interconnect {
             ram: ram,
             display: vec![0; DISPLAY_SIZE],
         };
-        interconnect.dump_fonts();
-        interconnect
+        virtual_machine.dump_fonts();
+        virtual_machine
     }
 
     fn set_input(&mut self, key: u8, down: bool) {
@@ -357,9 +342,9 @@ impl Interconnect {
     }
 }
 
-impl fmt::Debug for Interconnect {
+impl fmt::Debug for VirtualMachine {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "interconnect")
+        write!(f, "virtual_machine")
     }
 }
 
