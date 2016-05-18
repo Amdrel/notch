@@ -17,7 +17,7 @@ const DISPLAY_SIZE: usize = DISPLAY_WIDTH * DISPLAY_HEIGHT;
 // Wait for the duration it takes for an instruction to execute.
 const INPUT_WAIT_DELAY: u64 = 2;
 
-pub struct VirtualMachine {
+pub struct Interconnect {
     // SDL objects for communication with the window system.
     audio_device: sdl2::audio::AudioDevice<BeepCallback>,
     renderer: sdl2::render::Renderer<'static>,
@@ -46,8 +46,8 @@ pub struct VirtualMachine {
     pub display: Vec<u8>,
 }
 
-impl VirtualMachine {
-    pub fn new(rom: Vec<u8>) -> VirtualMachine {
+impl Interconnect {
+    pub fn new(rom: Vec<u8>) -> Interconnect {
         // Setup SDL for graphics and audio.
         let sdl_context = sdl2::init().unwrap();
         let video_subsystem = sdl_context.video().unwrap();
@@ -93,7 +93,7 @@ impl VirtualMachine {
 
         // Create and return the finished virtual machine struct now that
         // everything is initialized and in a good state.
-        let mut virtual_machine = VirtualMachine {
+        let interconnect = Interconnect {
             audio_device: device,
             renderer: renderer,
             event_pump: event_pump,
@@ -105,7 +105,7 @@ impl VirtualMachine {
             halt: false,
             display: vec![0; DISPLAY_SIZE],
         };
-        virtual_machine
+        interconnect
     }
 
     fn set_input(&mut self, key: u8, down: bool) {
@@ -290,9 +290,9 @@ impl VirtualMachine {
     }
 }
 
-impl fmt::Debug for VirtualMachine {
+impl fmt::Debug for Interconnect {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "virtual_machine")
+        write!(f, "interconnect")
     }
 }
 

@@ -2,8 +2,9 @@ use std::thread::sleep;
 use std::time::Duration;
 use super::memory::END_RESERVED;
 use super::rand::random;
-use super::vm::VirtualMachine;
+use super::interconnect::Interconnect;
 
+// Instructions are 2 bytes long and stored as BigEndian.
 const INSTRUCTION_SIZE: u16 = 2;
 
 // Round about 60Hz delay for timers.
@@ -14,7 +15,7 @@ const EXECUTION_DELAY: u64 = 2;
 
 #[derive(Debug)]
 pub struct Cpu {
-    virtual_machine: VirtualMachine,
+    interconnect: Interconnect,
 
     // Program counter.
     pc: u16,
@@ -52,10 +53,10 @@ pub struct Cpu {
 }
 
 impl Cpu {
-    pub fn new(virtual_machine: VirtualMachine) -> Cpu {
+    pub fn new(interconnect: Interconnect) -> Cpu {
         Cpu {
-            // VirtualMachine is used to control system resources like rom and memory.
-            virtual_machine: virtual_machine,
+            // Interconnect is used to control system resources like rom and memory.
+            interconnect: interconnect,
 
             // Program counter.
             pc: END_RESERVED as u16,
@@ -96,16 +97,16 @@ impl Cpu {
     /// Execute instructions from ram.
     pub fn run(&mut self) {
         loop {
-            // VirtualMachine can signal the emulator to halt.
-            // This is because virtual_machine works with the native window system
+            // Interconnect can signal the emulator to halt.
+            // This is because interconnect works with the native window system
             // and handles close events.
-            if self.virtual_machine.halt {
+            if self.interconnect.halt {
                 break
             }
 
             // Read a word from ram where the program counter currently points
             // to execute.
-            let word = self.virtual_machine.memory.read_word(self.pc);
+            let word = self.interconnect.memory.read_word(self.pc);
 
             // Execute until the subroutine ends if we are in one.
             if self.execute_instruction(word) {
@@ -113,7 +114,7 @@ impl Cpu {
             }
 
             // Poll for input and set the input state.
-            self.virtual_machine.handle_input();
+            self.interconnect.handle_input();
         }
     }
 
@@ -134,7 +135,7 @@ impl Cpu {
                         // 00E0 - CLS
                         // Clears the screen.
 
-                        self.virtual_machine.clear_display();
+                        self.interconnect.clear_display();
                     },
                     0xEE => {
                         // 00EE - RET
@@ -434,7 +435,7 @@ impl Cpu {
                 // register I into our sprite.
                 let mut sprite = vec![0 as u8; nibble];
                 for i in 0..nibble {
-                    sprite[i] = self.virtual_machine.memory.read(self.i as usize + i);
+                    sprite[i] = self.interconnect.memory.read(self.i as usize + i);
                 }
 
                 // Get screen coordinates from the requested registers.
@@ -442,7 +443,7 @@ impl Cpu {
                 let y = self.get_reg(regy);
 
                 // Draw the sprite and store collision detection results in vf.
-                self.vf = self.virtual_machine.draw(x as usize, y as usize, sprite);
+                self.vf = self.interconnect.draw(x as usize, y as usize, sprite);
             },
             0xe => {
                 let regx = ((instr << 4) >> 12) as u8;
@@ -456,7 +457,7 @@ impl Cpu {
                         // is pressed.
 
                         let x = self.get_reg(regx);
-                        if self.virtual_machine.input_state[x as usize] {
+                        if self.interconnect.input_state[x as usize] {
                             self.pc += INSTRUCTION_SIZE;
                         }
                     },
@@ -467,7 +468,7 @@ impl Cpu {
                         // isn't pressed.
 
                         let x = self.get_reg(regx);
-                        if !self.virtual_machine.input_state[x as usize] {
+                        if !self.interconnect.input_state[x as usize] {
                             self.pc += INSTRUCTION_SIZE;
                         }
                     },
@@ -497,7 +498,7 @@ impl Cpu {
                         // value of that key is stored in VX.
 
                         println!("Waiting for input...");
-                        let key = self.virtual_machine.wait_input();
+                        let key = self.interconnect.wait_input();
                         self.set_reg(regx, key);
                     },
                     0x15 => {
@@ -533,7 +534,7 @@ impl Cpu {
                         // represented by a 4x5 font.
 
                         let x = self.get_reg(regx);
-                        self.i = self.virtual_machine.memory.get_font(x);
+                        self.i = self.interconnect.memory.get_font(x);
                     },
                     0x33 => {
                         // FX33 - LD B, VX
@@ -562,9 +563,9 @@ impl Cpu {
 
                         // Set I, I+1, and I+3 to the values of the digits.
                         let i = self.i as usize;
-                        self.virtual_machine.memory.write(i, digits[0]);
-                        self.virtual_machine.memory.write(i + 1, digits[1]);
-                        self.virtual_machine.memory.write(i + 2, digits[2]);
+                        self.interconnect.memory.write(i, digits[0]);
+                        self.interconnect.memory.write(i + 1, digits[1]);
+                        self.interconnect.memory.write(i + 2, digits[2]);
                     },
                     0x55 => {
                         // FX55 - LD [I], VX
@@ -577,7 +578,7 @@ impl Cpu {
 
                         for register in 0x0..end_reg {
                             let val = self.get_reg(register as u8);
-                            self.virtual_machine.memory.write(i + register, val);
+                            self.interconnect.memory.write(i + register, val);
                         }
                     },
                     0x65 => {
@@ -590,7 +591,7 @@ impl Cpu {
                         let end_reg = (regx + 1) as usize;
 
                         for register in 0x0..end_reg {
-                            let mem = self.virtual_machine.memory.read(i + register);
+                            let mem = self.interconnect.memory.read(i + register);
                             self.set_reg(register as u8, mem);
                         }
                     },
@@ -622,9 +623,9 @@ impl Cpu {
         let st_enabled = self.st > 0;
 
         if st_enabled {
-            self.virtual_machine.beeping = true;
+            self.interconnect.beeping = true;
         } else {
-            self.virtual_machine.beeping = false;
+            self.interconnect.beeping = false;
         }
 
         if dt_enabled || st_enabled {

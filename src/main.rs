@@ -9,7 +9,7 @@ use std::path::Path;
 
 mod cpu;
 mod memory;
-mod vm;
+mod interconnect;
 
 fn main() {
     if let Some(rom_file_name) = env::args().nth(1) {
@@ -17,8 +17,8 @@ fn main() {
 
         // Create a clean cpu state and virtual machine. The CPU must have a shorter
         // lifetime than the virtual machine in order to use it's resources.
-        let virtual_machine = vm::VirtualMachine::new(rom);
-        let mut cpu = cpu::Cpu::new(virtual_machine);
+        let interconnect = interconnect::Interconnect::new(rom);
+        let mut cpu = cpu::Cpu::new(interconnect);
         cpu.run();
     } else {
         println!("noth {} a CHIP-8 Virtual Machine in Rust\n", env!("CARGO_PKG_VERSION"));
