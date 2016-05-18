@@ -1,10 +1,8 @@
 use std::fmt;
 use std::thread::sleep;
 use std::time::Duration;
-use super::byteorder::{BigEndian, ByteOrder};
-use super::cpu::Cpu;
 use super::memory::Memory;
-use super::sdl2::audio::{AudioDevice, AudioCallback, AudioSpecDesired};
+use super::sdl2::audio::{AudioCallback, AudioSpecDesired};
 use super::sdl2::event::Event;
 use super::sdl2::keyboard::Keycode;
 use super::sdl2::pixels::Color;
