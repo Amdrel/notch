@@ -11,13 +11,16 @@ mod cpu;
 mod interconnect;
 
 fn main() {
-    // TODO: Replace unwrap.
-    let rom_file_name = env::args().nth(1).unwrap();
-    let rom = read_bin(rom_file_name);
+    if let Some(rom_file_name) = env::args().nth(1) {
+        let rom = read_bin(rom_file_name);
 
-    let interconnect = interconnect::Interconnect::new(rom);
-    let mut cpu = cpu::Cpu::new(interconnect);
-    cpu.run();
+        let interconnect = interconnect::Interconnect::new(rom);
+        let mut cpu = cpu::Cpu::new(interconnect);
+        cpu.run();
+    } else {
+        println!("noth {} a CHIP-8 Virtual Machine in Rust\n", env!("CARGO_PKG_VERSION"));
+        println!("usage: {} <rom file>", env::args().nth(0).unwrap());
+    }
 }
 
 fn read_bin<P: AsRef<Path>>(path: P) -> Vec<u8> {
