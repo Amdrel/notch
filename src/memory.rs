@@ -4,9 +4,14 @@ use super::byteorder::{BigEndian, ByteOrder};
 pub const RAM_SIZE: usize = 4096;
 
 // Memory map constraints for CHIP-8 virtual machines.
-pub const START_RESERVED: usize = 0x000;
 pub const END_RESERVED: usize = 0x200;
-pub const END_PROGRAM_SPACE: usize = 0xFFF;
+
+// Here are some additional unused constrains for documentation purposes. These
+// are defined in the CHIP-8 spec but are not referenced in code for this
+// specific implementation.
+//
+//     pub const START_RESERVED: usize = 0x000;
+//     pub const END_PROGRAM_SPACE: usize = 0xFFF;
 
 // Font size constants.
 const CHARACTER_SIZE: usize = 5;
