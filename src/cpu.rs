@@ -103,7 +103,7 @@ impl Cpu {
             // Interconnect can signal the emulator to halt.
             // This is because interconnect works with the native window system
             // and handles close events.
-            if self.interconnect.halt {
+            if self.interconnect.input.close_requested {
                 break
             }
 
@@ -117,7 +117,10 @@ impl Cpu {
             }
 
             // Poll for input and set the input state.
-            self.interconnect.handle_input();
+            self.interconnect.input.handle_input();
+
+            // Monitor the beeping state.
+            self.interconnect.handle_sound();
         }
     }
 
@@ -460,7 +463,7 @@ impl Cpu {
                         // is pressed.
 
                         let x = self.get_reg(regx);
-                        if self.interconnect.input_state[x as usize] {
+                        if self.interconnect.input.input_state[x as usize] {
                             self.pc += INSTRUCTION_SIZE;
                         }
                     },
@@ -471,7 +474,7 @@ impl Cpu {
                         // isn't pressed.
 
                         let x = self.get_reg(regx);
-                        if !self.interconnect.input_state[x as usize] {
+                        if !self.interconnect.input.input_state[x as usize] {
                             self.pc += INSTRUCTION_SIZE;
                         }
                     },
@@ -501,7 +504,7 @@ impl Cpu {
                         // value of that key is stored in VX.
 
                         println!("Waiting for input...");
-                        let key = self.interconnect.wait_input();
+                        let key = self.interconnect.input.wait_input();
                         self.set_reg(regx, key);
                     },
                     0x15 => {

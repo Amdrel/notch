@@ -27,10 +27,6 @@ pub struct Interconnect {
 
     // When true beeping audio will play.
     pub beeping: bool,
-
-    // The CPU reads this value before executing instructions, and when set to
-    // true the CPU will stop executing.
-    pub halt: bool,
 }
 
 impl Interconnect {
@@ -64,7 +60,6 @@ impl Interconnect {
             graphics: graphics,
             input: input,
             beeping: false,
-            halt: false,
         };
 
         interconnect

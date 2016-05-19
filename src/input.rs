@@ -24,6 +24,9 @@ pub struct Input {
 
     // Last key pressed.
     pub last_input: u8,
+
+    // Set to true when sdl sends a close event.
+    pub close_requested: bool,
 }
 
 impl Input {
@@ -36,6 +39,7 @@ impl Input {
             input_state: [false; 16],
             input_dirty: false,
             last_input: 0,
+            close_requested: false,
         }
     }
 
@@ -50,8 +54,8 @@ impl Input {
                 Event::Quit {..} => {
                     // Detect close button or escape button events.
                     // The interpreter is then signaled to halt and stop
-                    // executing code.
-                    self.halt = true;
+                    // executing code when the cpu reads this value.
+                    self.close_requested = true;
                 },
 
                 // Keyboard to CHIP-8 keycode mapping.
@@ -90,8 +94,6 @@ impl Input {
                 _ => {}
             }
         }
-
-        self.handle_sound();
     }
 
     /// Wait until an input event comes through and return the key for that
