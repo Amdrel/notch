@@ -25,6 +25,7 @@ impl Memory {
     pub fn new(rom: Vec<u8>) -> Memory {
         // Allocate 4kB of memory as defined in the many specifications.
         let mut ram = vec![0; RAM_SIZE];
+
         Memory::dump_rom(&mut ram, &rom);
         Memory::dump_fonts(&mut ram);
 

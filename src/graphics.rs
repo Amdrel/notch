@@ -12,7 +12,7 @@ pub struct Graphics {
 
     // 64x32 buffer for the application to write to. The contents of this buffer
     // is rendered to the SDL surface.
-    pub display: Vec<u8>,
+    display: Vec<u8>,
 }
 
 impl Graphics {

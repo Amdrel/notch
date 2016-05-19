@@ -10,6 +10,7 @@ use std::path::Path;
 mod cpu;
 mod memory;
 mod graphics;
+mod input;
 mod interconnect;
 mod vm;
 
