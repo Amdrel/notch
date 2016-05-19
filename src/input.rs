@@ -1,14 +1,9 @@
-use std::cell::RefCell;
-use std::rc::Rc;
-use std::rc::Weak;
 use std::thread::sleep;
 use std::time::Duration;
 
 use super::sdl2::event::Event;
 use super::sdl2::keyboard::Keycode;
 use super::sdl2;
-
-use super::interconnect::Interconnect;
 
 // Wait for the duration it takes for an instruction to execute.
 const INPUT_WAIT_DELAY: u64 = 2;

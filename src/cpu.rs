@@ -120,7 +120,7 @@ impl Cpu {
             self.interconnect.input.handle_input();
 
             // Monitor the beeping state.
-            self.interconnect.handle_sound();
+            self.interconnect.sound.handle_sound();
         }
     }
 
@@ -629,9 +629,9 @@ impl Cpu {
         let st_enabled = self.st > 0;
 
         if st_enabled {
-            self.interconnect.beeping = true;
+            self.interconnect.sound.beeping = true;
         } else {
-            self.interconnect.beeping = false;
+            self.interconnect.sound.beeping = false;
         }
 
         if dt_enabled || st_enabled {
