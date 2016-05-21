@@ -1,6 +1,7 @@
-extern crate rand;
 extern crate byteorder;
+extern crate rand;
 extern crate sdl2;
+extern crate time;
 
 use std::env;
 use std::fs;

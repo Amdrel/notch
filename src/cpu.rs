@@ -2,6 +2,7 @@ use std::thread::sleep;
 use std::time::Duration;
 
 use super::rand::random;
+use super::time;
 
 use super::memory::END_RESERVED;
 use super::interconnect::Interconnect;
@@ -53,6 +54,9 @@ pub struct Cpu {
     // Timer and sound registers.
     dt: u8,
     st: u8,
+
+    dt_end: u64,
+    st_end: u64,
 }
 
 impl Cpu {
@@ -94,6 +98,9 @@ impl Cpu {
             // Timer and sound registers.
             dt: 0,
             st: 0,
+
+            dt_end: 0,
+            st_end: 0,
         }
     }
 
@@ -503,7 +510,6 @@ impl Cpu {
                         // All execution stops until a key is pressed, then the
                         // value of that key is stored in VX.
 
-                        println!("Waiting for input...");
                         let key = self.interconnect.input.wait_input();
                         self.set_reg(regx, key);
                     },
@@ -625,27 +631,33 @@ impl Cpu {
 
     /// Handle the delay timer and play sounds.
     fn handle_timers(&mut self) {
+        let current_time = time::precise_time_ns() / 1000000;
+
         let dt_enabled = self.dt > 0;
         let st_enabled = self.st > 0;
 
         if st_enabled {
             self.interconnect.sound.beeping = true;
+
+            if current_time >= self.st_end {
+                self.st -= 1;
+                self.st_end = current_time + TIMER_DELAY;
+            }
         } else {
             self.interconnect.sound.beeping = false;
         }
 
-        if dt_enabled || st_enabled {
-            sleep(Duration::from_millis(TIMER_DELAY));
+        if dt_enabled {
+            // TODO: Replace with time check.
+            //sleep(Duration::from_millis(TIMER_DELAY));
 
-            if dt_enabled {
+            if current_time >= self.dt_end {
                 self.dt -= 1;
+                self.dt_end = current_time + TIMER_DELAY;
             }
-            if st_enabled {
-                self.st -= 1;
-            }
-        } else {
-            sleep(Duration::from_millis(EXECUTION_DELAY));
         }
+
+        sleep(Duration::from_millis(EXECUTION_DELAY));
     }
 
     /// Gets the value at a specified register.
