@@ -50,7 +50,7 @@ fn read_bin<P: AsRef<Path>>(path: P) -> Vec<u8> {
     let filename = format!("{}", path.as_ref().display());
 
     // Open and read the file if it exists.
-    let mut file = match File::open(path) {
+    match File::open(path) {
         Ok(ref mut file) => {
             file.read_to_end(&mut buffer).unwrap();
         },
