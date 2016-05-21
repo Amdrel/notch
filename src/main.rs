@@ -4,7 +4,7 @@ extern crate sdl2;
 extern crate time;
 
 use std::env;
-use std::fs;
+use std::fs::File;
 use std::io::Read;
 use std::path::Path;
 
@@ -46,8 +46,19 @@ fn print_usage() {
 
 /// Reads a file into a vector of unsigned bytes.
 fn read_bin<P: AsRef<Path>>(path: P) -> Vec<u8> {
-    let mut file = fs::File::open(path).unwrap();
-    let mut buffer = Vec::new();
-    file.read_to_end(&mut buffer).unwrap();
+    let mut buffer: Vec<u8> = Vec::new();
+    let filename = format!("{}", path.as_ref().display());
+
+    // Open and read the file if it exists.
+    let mut file = match File::open(path) {
+        Ok(ref mut file) => {
+            file.read_to_end(&mut buffer).unwrap();
+        },
+        Err(why) => {
+            println!("notch: cannot open '{}': {}", filename, why);
+            std::process::exit(2);
+        },
+    };
+
     buffer
 }
