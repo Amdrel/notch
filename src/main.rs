@@ -16,17 +16,34 @@ mod sound;
 mod vm;
 
 fn main() {
+    // TODO: Use an actual argument parser when adding options in the future.
     if let Some(rom_file_name) = env::args().nth(1) {
         let rom = read_bin(rom_file_name);
 
         let mut vm = vm::VirtualMachine::new(rom);
         vm.run();
     } else {
-        println!("noth {} a CHIP-8 Virtual Machine in Rust\n", env!("CARGO_PKG_VERSION"));
-        println!("usage: {} <rom file>", env::args().nth(0).unwrap());
+        print_usage();
+        std::process::exit(1);
     }
 }
 
+/// Prints the application name alongside the cargo version.
+fn print_version() {
+    println!("notch {}", env!("CARGO_PKG_VERSION"));
+}
+
+/// Prints usage information.
+fn print_usage() {
+    println!("Notch is a CHIP-8 virtual machine written in Rust.");
+    println!("");
+    println!("Usage: notch [ROM]");
+    println!("");
+    println!("To contribute or report bugs, please see:");
+    println!("<https://github.com/Reshurum/notch>");
+}
+
+/// Reads a file into a vector of unsigned bytes.
 fn read_bin<P: AsRef<Path>>(path: P) -> Vec<u8> {
     let mut file = fs::File::open(path).unwrap();
     let mut buffer = Vec::new();
