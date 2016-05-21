@@ -1,31 +1,64 @@
-extern crate rand;
 extern crate byteorder;
+extern crate rand;
 extern crate sdl2;
+extern crate time;
 
 use std::env;
-use std::fs;
+use std::fs::File;
 use std::io::Read;
 use std::path::Path;
 
 mod cpu;
+mod graphics;
+mod input;
 mod interconnect;
+mod memory;
+mod sound;
+mod vm;
 
 fn main() {
+    // TODO: Use an actual argument parser when adding options in the future.
     if let Some(rom_file_name) = env::args().nth(1) {
         let rom = read_bin(rom_file_name);
 
-        let interconnect = interconnect::Interconnect::new(rom);
-        let mut cpu = cpu::Cpu::new(interconnect);
-        cpu.run();
+        let mut vm = vm::VirtualMachine::new(rom);
+        vm.run();
     } else {
-        println!("noth {} a CHIP-8 Virtual Machine in Rust\n", env!("CARGO_PKG_VERSION"));
-        println!("usage: {} <rom file>", env::args().nth(0).unwrap());
+        print_usage();
+        std::process::exit(1);
     }
 }
 
+/// Prints the application name alongside the cargo version.
+fn print_version() {
+    println!("notch {}", env!("CARGO_PKG_VERSION"));
+}
+
+/// Prints usage information.
+fn print_usage() {
+    println!("Notch is a CHIP-8 virtual machine written in Rust.");
+    println!("");
+    println!("Usage: notch [ROM]");
+    println!("");
+    println!("To contribute or report bugs, please see:");
+    println!("<https://github.com/Reshurum/notch>");
+}
+
+/// Reads a file into a vector of unsigned bytes.
 fn read_bin<P: AsRef<Path>>(path: P) -> Vec<u8> {
-    let mut file = fs::File::open(path).unwrap();
-    let mut buffer = Vec::new();
-    file.read_to_end(&mut buffer).unwrap();
+    let mut buffer: Vec<u8> = Vec::new();
+    let filename = format!("{}", path.as_ref().display());
+
+    // Open and read the file if it exists.
+    match File::open(path) {
+        Ok(ref mut file) => {
+            file.read_to_end(&mut buffer).unwrap();
+        },
+        Err(why) => {
+            println!("notch: cannot open '{}': {}", filename, why);
+            std::process::exit(2);
+        },
+    };
+
     buffer
 }

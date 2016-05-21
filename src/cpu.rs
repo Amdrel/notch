@@ -2,9 +2,12 @@ use std::thread::sleep;
 use std::time::Duration;
 
 use super::rand::random;
-use super::interconnect::Interconnect;
-use super::interconnect::END_RESERVED;
+use super::time;
 
+use super::memory::END_RESERVED;
+use super::interconnect::Interconnect;
+
+// Instructions are 2 bytes long and stored as BigEndian.
 const INSTRUCTION_SIZE: u16 = 2;
 
 // Round about 60Hz delay for timers.
@@ -15,7 +18,7 @@ const EXECUTION_DELAY: u64 = 2;
 
 #[derive(Debug)]
 pub struct Cpu {
-    // Interconnect is used to control system resources like rom and memory.
+    // Interconnect has access to the memory and other external resources.
     interconnect: Interconnect,
 
     // Program counter.
@@ -51,6 +54,9 @@ pub struct Cpu {
     // Timer and sound registers.
     dt: u8,
     st: u8,
+
+    dt_end: u64,
+    st_end: u64,
 }
 
 impl Cpu {
@@ -92,6 +98,9 @@ impl Cpu {
             // Timer and sound registers.
             dt: 0,
             st: 0,
+
+            dt_end: 0,
+            st_end: 0,
         }
     }
 
@@ -101,13 +110,13 @@ impl Cpu {
             // Interconnect can signal the emulator to halt.
             // This is because interconnect works with the native window system
             // and handles close events.
-            if self.interconnect.halt {
+            if self.interconnect.input.close_requested {
                 break
             }
 
             // Read a word from ram where the program counter currently points
             // to execute.
-            let word = self.interconnect.read_word(self.pc);
+            let word = self.interconnect.memory.read_word(self.pc);
 
             // Execute until the subroutine ends if we are in one.
             if self.execute_instruction(word) {
@@ -115,7 +124,10 @@ impl Cpu {
             }
 
             // Poll for input and set the input state.
-            self.interconnect.handle_input();
+            self.interconnect.input.handle_input();
+
+            // Monitor the beeping state.
+            self.interconnect.sound.handle_sound();
         }
     }
 
@@ -136,7 +148,7 @@ impl Cpu {
                         // 00E0 - CLS
                         // Clears the screen.
 
-                        self.interconnect.clear_display();
+                        self.interconnect.graphics.clear_display();
                     },
                     0xEE => {
                         // 00EE - RET
@@ -436,7 +448,7 @@ impl Cpu {
                 // register I into our sprite.
                 let mut sprite = vec![0 as u8; nibble];
                 for i in 0..nibble {
-                    sprite[i] = self.interconnect.ram[self.i as usize + i];
+                    sprite[i] = self.interconnect.memory.read(self.i as usize + i);
                 }
 
                 // Get screen coordinates from the requested registers.
@@ -444,7 +456,7 @@ impl Cpu {
                 let y = self.get_reg(regy);
 
                 // Draw the sprite and store collision detection results in vf.
-                self.vf = self.interconnect.draw(x as usize, y as usize, sprite);
+                self.vf = self.interconnect.graphics.draw(x as usize, y as usize, sprite);
             },
             0xe => {
                 let regx = ((instr << 4) >> 12) as u8;
@@ -458,7 +470,7 @@ impl Cpu {
                         // is pressed.
 
                         let x = self.get_reg(regx);
-                        if self.interconnect.input_state[x as usize] {
+                        if self.interconnect.input.input_state[x as usize] {
                             self.pc += INSTRUCTION_SIZE;
                         }
                     },
@@ -469,7 +481,7 @@ impl Cpu {
                         // isn't pressed.
 
                         let x = self.get_reg(regx);
-                        if !self.interconnect.input_state[x as usize] {
+                        if !self.interconnect.input.input_state[x as usize] {
                             self.pc += INSTRUCTION_SIZE;
                         }
                     },
@@ -498,8 +510,7 @@ impl Cpu {
                         // All execution stops until a key is pressed, then the
                         // value of that key is stored in VX.
 
-                        println!("Waiting for input...");
-                        let key = self.interconnect.wait_input();
+                        let key = self.interconnect.input.wait_input();
                         self.set_reg(regx, key);
                     },
                     0x15 => {
@@ -535,7 +546,7 @@ impl Cpu {
                         // represented by a 4x5 font.
 
                         let x = self.get_reg(regx);
-                        self.i = self.interconnect.get_font(x);
+                        self.i = self.interconnect.memory.get_font(x);
                     },
                     0x33 => {
                         // FX33 - LD B, VX
@@ -564,9 +575,9 @@ impl Cpu {
 
                         // Set I, I+1, and I+3 to the values of the digits.
                         let i = self.i as usize;
-                        self.interconnect.ram[i] = digits[0];
-                        self.interconnect.ram[i + 1] = digits[1];
-                        self.interconnect.ram[i + 2] = digits[2];
+                        self.interconnect.memory.write(i, digits[0]);
+                        self.interconnect.memory.write(i + 1, digits[1]);
+                        self.interconnect.memory.write(i + 2, digits[2]);
                     },
                     0x55 => {
                         // FX55 - LD [I], VX
@@ -579,7 +590,7 @@ impl Cpu {
 
                         for register in 0x0..end_reg {
                             let val = self.get_reg(register as u8);
-                            self.interconnect.ram[i + register] = val;
+                            self.interconnect.memory.write(i + register, val);
                         }
                     },
                     0x65 => {
@@ -592,7 +603,7 @@ impl Cpu {
                         let end_reg = (regx + 1) as usize;
 
                         for register in 0x0..end_reg {
-                            let mem = self.interconnect.ram[i + register];
+                            let mem = self.interconnect.memory.read(i + register);
                             self.set_reg(register as u8, mem);
                         }
                     },
@@ -620,27 +631,33 @@ impl Cpu {
 
     /// Handle the delay timer and play sounds.
     fn handle_timers(&mut self) {
+        let current_time = time::precise_time_ns() / 1000000;
+
         let dt_enabled = self.dt > 0;
         let st_enabled = self.st > 0;
 
         if st_enabled {
-            self.interconnect.beeping = true;
-        } else {
-            self.interconnect.beeping = false;
-        }
+            self.interconnect.sound.beeping = true;
 
-        if dt_enabled || st_enabled {
-            sleep(Duration::from_millis(TIMER_DELAY));
-
-            if dt_enabled {
-                self.dt -= 1;
-            }
-            if st_enabled {
+            if current_time >= self.st_end {
                 self.st -= 1;
+                self.st_end = current_time + TIMER_DELAY;
             }
         } else {
-            sleep(Duration::from_millis(EXECUTION_DELAY));
+            self.interconnect.sound.beeping = false;
         }
+
+        if dt_enabled {
+            // TODO: Replace with time check.
+            //sleep(Duration::from_millis(TIMER_DELAY));
+
+            if current_time >= self.dt_end {
+                self.dt -= 1;
+                self.dt_end = current_time + TIMER_DELAY;
+            }
+        }
+
+        sleep(Duration::from_millis(EXECUTION_DELAY));
     }
 
     /// Gets the value at a specified register.
