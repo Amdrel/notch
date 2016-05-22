@@ -1,4 +1,4 @@
-# Notch
+# Notch [![Build Status](https://travis-ci.org/Reshurum/notch.svg?branch=master)](https://travis-ci.org/Reshurum/notch)
 
 Notch is a CHIP-8 virtual machine written in Rust.
 
